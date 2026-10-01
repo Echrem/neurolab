@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[52,)"
+license="MIT"
+
+[[mods]]
+modId="neurolab"
+version="${mod_version}"
+displayName="NeuroLab"
+authors="NeuroLab contributors"
+description='''An independent research mod for attaching a fly connectome brain to Minecraft mobs and observing its activity.'''
+
+[[dependencies.neurolab]]
+modId="forge"
+mandatory=true
+versionRange="[52,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.neurolab]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.21.1,1.22)"
+ordering="NONE"
+side="BOTH"
