@@ -18,7 +18,7 @@ public final class TelemetryNetwork {
     private static Channel<CustomPacketPayload> createChannel() {
         PayloadConnection<CustomPacketPayload> connection = ChannelBuilder
                 .named(ResourceLocation.fromNamespaceAndPath(NeuroLabMod.MOD_ID, "main"))
-                .networkProtocolVersion(1)
+                .networkProtocolVersion(2)
                 .optional()
                 .payloadChannel();
         return connection.play()

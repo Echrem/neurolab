@@ -3,6 +3,7 @@ package lab.neurolab.client;
 import lab.neurolab.minecraft.BrainTelemetryPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
@@ -13,8 +14,8 @@ import java.util.Locale;
 
 /** Selectable, multi-signal telemetry dashboard for attached mobs. */
 public final class NeuroAnalysisScreen extends Screen {
-    private static final int PANEL = 0xF0121B27;
-    private static final int PANEL_INNER = 0xD91C2936;
+    private static final int PANEL = 0xFF0B1118;
+    private static final int PANEL_INNER = 0xFF16232F;
     private int selectedEntityId = -1;
 
     public NeuroAnalysisScreen() {
@@ -22,19 +23,29 @@ public final class NeuroAnalysisScreen extends Screen {
     }
 
     @Override
+    protected void init() {
+        int panelW = Math.min(1040, width - 32);
+        int panelX = (width - panelW) / 2;
+        addRenderableWidget(Button.builder(Component.literal("SETTINGS"), b ->
+                        Minecraft.getInstance().setScreen(new NeuroSettingsScreen(this)))
+                .bounds(panelX + panelW - 102, 22, 84, 18).build());
+    }
+
+    @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        renderBackground(g, mouseX, mouseY, partialTick);
+        g.fill(0, 0, width, height, 0xB8000000);
         int panelW = Math.max(0, Math.min(1040, width - 32));
         int panelX = (width - panelW) / 2;
         int panelY = 14;
         int panelBottom = height - 14;
+        g.fill(panelX - 1, panelY - 1, panelX + panelW + 1, panelBottom + 1, 0xFF486174);
         g.fill(panelX, panelY, panelX + panelW, panelBottom, PANEL);
         g.fill(panelX, panelY, panelX + panelW, panelY + 2, 0xFF49BCE4);
 
         int left = panelX + 18;
         int contentW = panelW - 36;
-        g.drawString(font, "NEUROLAB  /  ENGINEERING TELEMETRY", left, panelY + 12, 0xFF9FE3FF, false);
-        g.drawString(font, "LIVE · server-authoritative · bounded history", left, panelY + 29, 0xFFB5C7D6, false);
+        g.drawString(font, "NEUROLAB  /  ENGINEERING TELEMETRY", left, panelY + 12, 0xFFB9ECFF, true);
+        g.drawString(font, "LIVE · server-authoritative · bounded history", left, panelY + 29, 0xFFE0EAF2, true);
 
         List<TelemetryHistory.SeriesView> streams = TelemetryHistory.snapshot().stream()
                 .filter(s -> !s.samples().isEmpty())
@@ -42,7 +53,7 @@ public final class NeuroAnalysisScreen extends Screen {
         if (streams.isEmpty()) {
             g.fill(left, panelY + 58, left + contentW, panelBottom - 39, PANEL_INNER);
             g.drawCenteredString(font, "No brain telemetry received", width / 2, height / 2 - 12, 0xFFFFD48A);
-            g.drawCenteredString(font, "Attach a mob with /neurolab attach, then wait for its next sample.",
+            g.drawCenteredString(font, "Neuro Fly attaches on spawn; use /neurolab attach for another mob.",
                     width / 2, height / 2 + 4, 0xFFD4E0E9);
             drawFooter(g, left, panelBottom - 23, contentW, "Esc  close    ·    Ctrl + N  reopen");
             super.render(g, mouseX, mouseY, partialTick);
@@ -75,14 +86,58 @@ public final class NeuroAnalysisScreen extends Screen {
         int chartTop = mobY + 30;
         int chartBottom = panelBottom - 35;
         int gap = 8;
-        int chartW = Math.max(1, (contentW - gap * 2) / 3);
-        int chartH = Math.max(32, Math.min(96, (chartBottom - chartTop - gap) / 2));
-        for (int i = 0; i < Metric.values().length; i++) {
-            int col = i % 3;
-            int row = i / 3;
-            int chartX = left + col * (chartW + gap);
-            int chartY = chartTop + row * (chartH + gap);
-            drawChart(g, chartX, chartY, chartW, chartH, selected.samples(), Metric.values()[i]);
+        boolean leftPanel = contentW >= 760 && DashboardPreferences.showLeftPanel();
+        boolean rightPanel = contentW >= 760 && DashboardPreferences.showRightPanel();
+        int sideW = 150;
+        int centerX = left + (leftPanel ? sideW + gap : 0);
+        int centerW = contentW - (leftPanel ? sideW + gap : 0) - (rightPanel ? sideW + gap : 0);
+        List<Metric> metrics = java.util.Arrays.stream(Metric.values())
+                .filter(metric -> DashboardPreferences.showChart(metric.ordinal())).toList();
+
+        if (leftPanel) {
+            drawSidePanel(g, left, chartTop, sideW, chartBottom - chartTop, "SENSORY INPUT", new String[][]{
+                    {"EYE · CENTER", percent(latest.light())},
+                    {"EYE · LEFT", percent(latest.leftEye())},
+                    {"EYE · RIGHT", percent(latest.rightEye())},
+                    {"LOOMING", percent(latest.looming())},
+                    {"TOUCH", percent(latest.touch())},
+                    {"ODOR", percent(latest.odor())},
+                    {"TASTE", percent(latest.taste())},
+                    {"SOURCE", latest.testStimulus() ? "TEST PULSE" : "WORLD"}
+            }, 0xFF79D6F2);
+        }
+        if (rightPanel) {
+            drawSidePanel(g, left + contentW - sideW, chartTop, sideW, chartBottom - chartTop,
+                    "MOTOR OUTPUT", new String[][]{
+                            {"NEURAL FWD", percent(latest.forward())},
+                            {"NEURAL TURN", String.format(Locale.ROOT, "%+.2f", latest.turn())},
+                            {"NEURAL LIFT", percent(latest.lift())},
+                            {"BODY FWD", percent(latest.bodyForward())},
+                            {"BODY TURN", String.format(Locale.ROOT, "%+.2f", latest.bodyTurn())},
+                            {"BODY LIFT", percent(latest.bodyLift())},
+                            {"CONTROL", latest.reflex() ? "REFLEX LAYER" : "CONNECTOME"},
+                            {"NEURAL ESCAPE", latest.escape() ? "ACTIVE" : "idle"},
+                            {"BODY ESCAPE", latest.bodyEscape() ? "ACTIVE" : "idle"},
+                            {"SPIKES", Integer.toString(latest.spikes())},
+                            {"ACTIVE CELLS", Integer.toString(latest.active())},
+                            {"REAL-TIME", String.format(Locale.ROOT, "%.2fx", latest.realTimeFactor())}
+                    }, latest.escape() ? 0xFFFF9F7A : 0xFFFFC16D);
+        }
+        if (metrics.isEmpty()) {
+            g.drawCenteredString(font, "Enable at least one plot in SETTINGS", centerX + centerW / 2,
+                    chartTop + 12, 0xFFFFD48A);
+        } else {
+            int cols = centerW >= 400 ? 2 : 1;
+            int rows = (metrics.size() + cols - 1) / cols;
+            int chartW = Math.max(1, (centerW - gap * (cols - 1)) / cols);
+            int chartH = Math.max(32, (chartBottom - chartTop - gap * (rows - 1)) / rows);
+            for (int i = 0; i < metrics.size(); i++) {
+                int col = i % cols;
+                int row = i / cols;
+                int chartX = centerX + col * (chartW + gap);
+                int chartY = chartTop + row * (chartH + gap);
+                drawChart(g, chartX, chartY, chartW, chartH, selected.samples(), metrics.get(i));
+            }
         }
 
         String nav = streams.size() > 1
@@ -104,11 +159,12 @@ public final class NeuroAnalysisScreen extends Screen {
         int sensorX = x + 8;
         int brainX = sensorX + cardW + gap;
         int motorX = brainX + cardW + gap;
-        flowCard(g, sensorX, cardY, cardW, 38, "SENSORY ENCODER", "light · chemical · touch", 0xFF65B8D5);
+        flowCard(g, sensorX, cardY, cardW, 38, "WORLD SENSES", "eyes · looming · touch · odor · taste", 0xFF65B8D5);
         flowCard(g, brainX, cardY, cardW, 38, "FLY CONNECTOME",
                 sample.active() + " active · " + sample.spikes() + " spikes", 0xFFAF8BE8);
-        flowCard(g, motorX, cardY, cardW, 38, "MOTOR OUTPUT",
-                String.format(Locale.ROOT, "fwd %.0f%% · turn %+.2f", sample.forward() * 100, sample.turn()),
+        flowCard(g, motorX, cardY, cardW, 38, "NEURAL → BODY",
+                sample.reflex() ? "reflex fallback active" : String.format(Locale.ROOT,
+                        "fwd %.0f%% · turn %+.2f", sample.forward() * 100, sample.turn()),
                 0xFFFFB968);
         int mid = cardY + 19;
         g.fill(sensorX + cardW, mid, brainX, mid + 2, 0xFF65B8D5);
@@ -116,20 +172,40 @@ public final class NeuroAnalysisScreen extends Screen {
     }
 
     private void flowCard(GuiGraphics g, int x, int y, int w, int h, String title, String subtitle, int accent) {
-        g.fill(x, y, x + w, y + h, 0xE522303D);
+        g.fill(x, y, x + w, y + h, 0xFF202F3D);
         g.fill(x, y, x + 2, y + h, accent);
-        g.drawString(font, font.plainSubstrByWidth(title, Math.max(0, w - 12)), x + 7, y + 4, accent, false);
+        g.drawString(font, font.plainSubstrByWidth(title, Math.max(0, w - 12)), x + 7, y + 4, accent, true);
         g.drawString(font, font.plainSubstrByWidth(subtitle, Math.max(0, w - 12)), x + 7, y + 18,
-                0xFFD4E0E9, false);
+                0xFFF0F5F9, true);
+    }
+
+    private void drawSidePanel(GuiGraphics g, int x, int y, int w, int h, String title,
+                               String[][] rows, int accent) {
+        g.fill(x, y, x + w, y + h, PANEL_INNER);
+        g.fill(x, y, x + 2, y + h, accent);
+        g.drawString(font, title, x + 8, y + 8, accent, true);
+        g.fill(x + 8, y + 23, x + w - 8, y + 24, 0xFF486174);
+        int rowY = y + 34;
+        for (String[] row : rows) {
+            if (rowY + 20 >= y + h) break;
+            g.drawString(font, row[0], x + 8, rowY, 0xFFAFBFCC, true);
+            String value = font.plainSubstrByWidth(row[1], w - 16);
+            g.drawString(font, value, x + 8, rowY + 10, 0xFFF2F7FA, true);
+            rowY += 35;
+        }
+    }
+
+    private static String percent(float value) {
+        return String.format(Locale.ROOT, "%.0f%%", value * 100);
     }
 
     private void drawChart(GuiGraphics g, int x, int y, int w, int h,
                            List<BrainTelemetryPayload> samples, Metric metric) {
         g.fill(x, y, x + w, y + h, PANEL_INNER);
-        g.drawString(font, metric.label, x + 7, y + 4, metric.color, false);
+        g.drawString(font, metric.label, x + 7, y + 4, metric.color, true);
         BrainTelemetryPayload latest = samples.getLast();
         String value = metric.format(metric.value(latest));
-        g.drawString(font, value, x + w - font.width(value) - 7, y + 4, 0xFFE4EDF4, false);
+        g.drawString(font, value, x + w - font.width(value) - 7, y + 4, 0xFFFFFFFF, true);
 
         int plotLeft = x + 7;
         int plotRight = x + w - 7;
@@ -150,10 +226,10 @@ public final class NeuroAnalysisScreen extends Screen {
 
         for (int grid = 0; grid < 3; grid++) {
             int gy = plotTop + grid * plotH / 2;
-            g.fill(plotLeft, gy, plotRight, gy + 1, 0x553E5060);
+            g.fill(plotLeft, gy, plotRight, gy + 1, 0x994C6072);
         }
         int baseline = metric.signed ? plotTop + plotH / 2 : plotBottom;
-        if (metric.signed) g.fill(plotLeft, baseline, plotRight, baseline + 1, 0x998DA1B0);
+        if (metric.signed) g.fill(plotLeft, baseline, plotRight, baseline + 1, 0xFF8DA1B0);
 
         for (int i = 0; i < visible; i++) {
             float v = metric.value(samples.get(first + i));
@@ -173,12 +249,12 @@ public final class NeuroAnalysisScreen extends Screen {
                 g.fill(sampleX, endY, sampleX + 1, plotBottom, metric.color);
             }
         }
-        g.drawString(font, "n=" + samples.size(), plotLeft, y + h - 10, 0xFF8FA4B4, false);
-        g.drawString(font, "newest →", plotRight - font.width("newest →"), y + h - 10, 0xFF8FA4B4, false);
+        g.drawString(font, "n=" + samples.size(), plotLeft, y + h - 10, 0xFFC4D0DA, true);
+        g.drawString(font, "newest →", plotRight - font.width("newest →"), y + h - 10, 0xFFC4D0DA, true);
     }
 
     private void drawFooter(GuiGraphics g, int x, int y, int w, String text) {
-        g.drawString(font, font.plainSubstrByWidth(text, w), x + 2, y, 0xFF9EAFBD, false);
+        g.drawString(font, font.plainSubstrByWidth(text, w), x + 2, y, 0xFFD6E0E8, true);
     }
 
     private static int indexOf(List<TelemetryHistory.SeriesView> streams, int entityId) {
@@ -215,7 +291,17 @@ public final class NeuroAnalysisScreen extends Screen {
         FORWARD("FORWARD DRIVE", 0xFF72D69A, 1, false),
         TURN("TURN BIAS", 0xFFFFB75E, 1, true),
         LIFT("LIFT DRIVE", 0xFF58C9F3, 1, false),
-        REALTIME("REAL-TIME FACTOR", 0xFFEE8497, 1, false);
+        REALTIME("REAL-TIME FACTOR", 0xFFEE8497, 1, false),
+        LIGHT("CENTER EYE LIGHT", 0xFF78D6F2, 1, false),
+        LEFT_EYE("LEFT EYE LIGHT", 0xFF63B8E8, 1, false),
+        RIGHT_EYE("RIGHT EYE LIGHT", 0xFF9C9AF2, 1, false),
+        LOOMING("LOOMING", 0xFFFF9F7A, 1, false),
+        TOUCH("TOUCH", 0xFFFFC16D, 1, false),
+        ODOR("ODOR", 0xFFBAE07A, 1, false),
+        TASTE("TASTE", 0xFFE79BD2, 1, false),
+        BODY_FORWARD("BODY FORWARD", 0xFF72D69A, 1, false),
+        BODY_TURN("BODY TURN", 0xFFFFB75E, 1, true),
+        BODY_LIFT("BODY LIFT", 0xFF58C9F3, 1, false);
 
         private final String label;
         private final int color;
@@ -237,14 +323,26 @@ public final class NeuroAnalysisScreen extends Screen {
                 case TURN -> p.turn();
                 case LIFT -> p.lift();
                 case REALTIME -> p.realTimeFactor();
+                case LIGHT -> p.light();
+                case LEFT_EYE -> p.leftEye();
+                case RIGHT_EYE -> p.rightEye();
+                case LOOMING -> p.looming();
+                case TOUCH -> p.touch();
+                case ODOR -> p.odor();
+                case TASTE -> p.taste();
+                case BODY_FORWARD -> p.bodyForward();
+                case BODY_TURN -> p.bodyTurn();
+                case BODY_LIFT -> p.bodyLift();
             };
         }
 
         private String format(float v) {
             return switch (this) {
                 case SPIKES, ACTIVE -> String.format(Locale.ROOT, "%.0f", v);
-                case FORWARD, LIFT -> String.format(Locale.ROOT, "%.0f%%", v * 100);
-                case TURN -> String.format(Locale.ROOT, "%+.2f", v);
+                case FORWARD, LIFT, LIGHT, LEFT_EYE, RIGHT_EYE, LOOMING, TOUCH, ODOR, TASTE,
+                     BODY_FORWARD, BODY_LIFT ->
+                        String.format(Locale.ROOT, "%.0f%%", v * 100);
+                case TURN, BODY_TURN -> String.format(Locale.ROOT, "%+.2f", v);
                 case REALTIME -> String.format(Locale.ROOT, "%.2fx", v);
             };
         }

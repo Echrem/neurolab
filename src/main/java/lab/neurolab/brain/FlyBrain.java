@@ -6,9 +6,14 @@ import java.util.SplittableRandom;
 
 /** Sparse event-driven leaky integrate-and-fire simulation over an immutable adult-fly connectome. */
 public final class FlyBrain {
-    public record Drive(float light, float looming, float tactile, float odor, float taste) {
+    public record Drive(float light, float leftEye, float rightEye, float looming, float tactile, float odor,
+                        float taste) {
+        public Drive(float light, float looming, float tactile, float odor, float taste) {
+            this(light, light, light, looming, tactile, odor, taste);
+        }
         public Drive {
-            light = clamp(light); looming = clamp(looming); tactile = clamp(tactile); odor = clamp(odor); taste = clamp(taste);
+            light = clamp(light); leftEye = clamp(leftEye); rightEye = clamp(rightEye);
+            looming = clamp(looming); tactile = clamp(tactile); odor = clamp(odor); taste = clamp(taste);
         }
         private static float clamp(float v) { return Float.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; }
     }
@@ -23,7 +28,7 @@ public final class FlyBrain {
     private final byte[] refractory;
     private final boolean[] queued;
     private int[] active, next;
-    private final int[] sensory;
+    private final int[] sensory, leftEye, rightEye;
     private final int[] olfactory, gustatory, tactile;
     private final String[] types;
     private final byte[] signs;
@@ -38,6 +43,8 @@ public final class FlyBrain {
         active = new int[Math.max(256, n / 32)]; next = new int[active.length];
         for (int i = 0; i < n; i++) voltage[i] = REST_MV;
         sensory = graph.visualReceptors;
+        leftEye = graph.visualLeftReceptors;
+        rightEye = graph.visualRightReceptors;
         olfactory = graph.olfactoryNeurons;
         gustatory = graph.gustatoryNeurons;
         tactile = graph.tactileNeurons;
@@ -53,7 +60,12 @@ public final class FlyBrain {
         Map<String, Integer> counts = new HashMap<>();
         for (int sub = 0; sub < 100; sub++) {
             int nextCount = 0;
-            nextCount = inject(sensory, drive.light * 70 + drive.looming * 90, next, nextCount);
+            if (leftEye.length > 0 && rightEye.length > 0) {
+                nextCount = inject(leftEye, (drive.light + drive.leftEye) * 35 + drive.looming * 45, next, nextCount);
+                nextCount = inject(rightEye, (drive.light + drive.rightEye) * 35 + drive.looming * 45, next, nextCount);
+            } else {
+                nextCount = inject(sensory, drive.light * 70 + drive.looming * 90, next, nextCount);
+            }
             nextCount = inject(olfactory, drive.odor * 80, next, nextCount);
             nextCount = inject(gustatory, drive.taste * 100, next, nextCount);
             nextCount = inject(tactile, drive.tactile * 80, next, nextCount);

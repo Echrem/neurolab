@@ -13,7 +13,8 @@ This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Fo
 - A custom **Neuro Fly** entity with a segmented body, compound eyes, six legs, animated wings, simple autonomous movement, and a Creative-mode spawn egg.
 - A connectome reader for the bundled FLYB v1 graph and a sparse, event-driven leaky integrate-and-fire (LIF) simulator.
 - Commands to attach the simulator to the Neuro Fly or another mob, inspect load status, and detach it.
-- A client-side engineering dashboard with a control-path diagram and six per-mob time-series charts.
+- Timed sensory test pulses for controlled input/output checks.
+- A client-side engineering dashboard with configurable side panels and sixteen per-mob time-series plots.
 - Asynchronous JSONL telemetry written to the current world's `neurolab/events.jsonl` file.
 
 The implementation is intentionally small enough to inspect. There is no separate launcher or account service, and the mod does not require Fabric API.
@@ -45,14 +46,21 @@ For a dedicated server, install the mod on the server and on each client joining
    /summon neurolab:neuro_fly
    ```
 
-4. Attach the connectome controller to the nearest Neuro Fly:
+4. Neuro Fly entities automatically attach after they spawn and the bundled dataset finishes loading. Check the status:
 
    ```mcfunction
-   /neurolab attach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
+   /neurolab status
    ```
 
-5. Open the dashboard with **Ctrl+N**. The `N` key can be changed in Minecraft's Controls screen; Ctrl is the required modifier.
-6. When finished, detach the controller to restore the mob's previous AI state:
+5. To attach another mob, target its actual entity type. For a sheep or villager, for example:
+
+   ```mcfunction
+   /neurolab attach @e[type=minecraft:sheep,limit=1,sort=nearest]
+   /neurolab attach @e[type=minecraft:villager,limit=1,sort=nearest]
+   ```
+
+6. Open the dashboard with **Ctrl+N** and use **SETTINGS** to choose side panels and plots. The `N` key can be changed in Minecraft's Controls screen; Ctrl is the required modifier.
+7. When finished, detach a selected mob to restore its previous AI state:
 
    ```mcfunction
    /neurolab detach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
@@ -63,33 +71,36 @@ Useful checks:
 ```mcfunction
 /neurolab status
 /summon neurolab:neuro_fly
-/neurolab attach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
+/neurolab attach @e[type=minecraft:sheep,limit=1,sort=nearest]
+/neurolab stimulate @e[type=neurolab:neuro_fly,limit=1,sort=nearest] looming 1 40
 /neurolab detach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
 ```
 
-To experiment with another mob, replace `neurolab:neuro_fly` in the selector with a mob type, for example `minecraft:spider`. The prototype allows up to four simultaneous attachments. Attaching pauses the mob's vanilla AI; detaching or unloading its chunk restores the AI state that was present before attachment.
+Neuro Fly spawn eggs and `/summon neurolab:neuro_fly` attach automatically. Other mobs can be attached with `/neurolab attach <entity selector>`; use the exact type in the selector, such as `minecraft:sheep`, `minecraft:villager`, or `minecraft:spider`. The mod has no fixed attached-mob limit. Brain tasks share a CPU-sized worker pool, so adding many mobs can reduce the real-time factor and increase server load. Attaching pauses the mob's vanilla AI; detaching or unloading its chunk restores the AI state that was present before attachment.
+
+For controlled input/output checks, use `/neurolab stimulate <mob> <sense> <strength> [ticks]`. Strength is 0–1, duration defaults to 40 ticks, and the maximum duration is 1200 ticks. Supported senses are `eye`, `left_eye`, `right_eye`, `looming`, `touch`, `odor`, and `taste`. Stimuli enter sensory channels only; this command does not set motor output directly. NeuroLab commands require operator permission on a server.
 
 ## How the controller works
 
 The bundled graph is derived from the neuPrint `male-cns:v1.0` adult male central nervous system connectome. It contains **176,422 neurons** and **6,287,749 retained connections** after this project's documented filtering and format conversion. The data file is compressed at `src/main/resources/connectome/male-cns-v1.0.flyb.gz`.
 
-At runtime, `ConnectomeData` reads the graph and its annotations. `FlyBrain` advances a sparse LIF network in 0.5 ms steps, grouped into 50 ms simulation updates. `BrainWorker` gives each attached brain its own lower-priority daemon thread, capped by the four-brain attachment limit. Minecraft entity and world reads and writes stay on the server thread: the worker receives numeric sensory values and publishes snapshots for the next game update. This design keeps the main tick from doing the neural integration itself; it is not a performance guarantee, and server load still needs to be measured in real worlds.
+At runtime, `ConnectomeData` reads the graph and its annotations. `FlyBrain` advances a sparse LIF network in 0.5 ms steps, grouped into 50 ms simulation updates. Brain updates run as scheduled tasks on a shared, lower-priority daemon pool; attached mobs are not capped, but CPU time is finite and the real-time factor includes integration time and scheduler delay. Minecraft entity and world reads and writes stay on the server thread: workers receive numeric sensory values and publish snapshots for the next game update. This design keeps neural integration off the main tick; it is not a performance guarantee, and server load still needs measurement in real worlds.
 
 The current world-to-network and network-to-mob mappings are deliberately simple:
 
 | Game observation | Current input proxy |
 | --- | --- |
-| Forward view | Local brightness sampled along a short forward ray |
-| Looming | Nearby entities moving toward the mob |
-| Odor | Nearby dropped item entities |
-| Taste | Contact with a small set of food-related blocks |
-| Touch | Collision or recent damage |
+| Vision | Brightness sampled along left, center, and right forward rays and sent to side-annotated retinal neurons; timed pulses can target either eye |
+| Looming | Nearby entities moving toward the mob; also available as a timed test pulse |
+| Odor | Nearby dropped item entities; also available as a timed test pulse |
+| Taste | Contact with a small set of food-related blocks; also available as a timed test pulse |
+| Touch | Collision or recent damage; also available as a timed test pulse |
 
-The simulator injects events into annotated sensory populations rather than directly stimulating motor neurons. Activity in selected descending-neuron labels is then summarized into forward, turn, lift, and escape-like channels. Those channels become conservative movement intents. The Neuro Fly can use lift; for other mobs, movement is constrained by the capabilities of that entity and normal Minecraft physics.
+The simulator injects events into annotated sensory populations rather than directly stimulating motor neurons. Activity in selected descending-neuron labels is summarized into neural forward, turn, lift, and escape channels. Since those channels can remain silent in this prototype, a separately labeled, hand-built embodiment fallback supplies slow exploration and collision/looming response while the neural channels are quiet. The dashboard and JSONL log keep neural output separate from body commands and mark when the fallback is active. This fallback is game-control scaffolding, not connectome-derived behavior. The Neuro Fly can use lift; for other mobs, movement is constrained by the capabilities of that entity and normal Minecraft physics.
 
 ## Reading the dashboard and logs
 
-Open the dashboard with **Ctrl+N**. It shows the sensory-encoder → connectome → motor-decoder path and six charts for the selected tracked mob: spikes per sample, active neurons, forward drive, signed turn bias, lift drive, and real-time factor. Use the left/right arrow keys to switch between tracked mobs. Each chart retains up to 180 samples; x positions represent sample order, not wall-clock time, and the server sends observations every two game ticks. A mob's plot is removed after ten seconds without new telemetry.
+Open the dashboard with **Ctrl+N**. Its side panels show three eye samples, looming, touch, odor, taste, neural motor output, and effective body commands. Up to sixteen plots cover those channels, spikes, active neurons, and real-time factor. **SETTINGS** toggles either side panel and each plot; these local preferences persist in `config/neurolab-dashboard.properties`. Use the left/right arrow keys to switch between tracked mobs. Each chart retains up to 180 samples; x positions represent sample order, not wall-clock time, and the server sends observations every two game ticks. A mob's plot is removed after ten seconds without new telemetry.
 
 This panel visualizes decoded telemetry; it does not render the full connectome or per-neuron electrophysiology. Counts use a per-chart automatic range, while bounded control signals use their defined ranges; turn is plotted around a zero baseline so direction is visible. It is an inspection aid, not a calibrated measurement instrument. The server also appends observations to:
 

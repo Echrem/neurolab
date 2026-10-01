@@ -16,11 +16,13 @@ public final class ConnectomeData {
     public final int[] rowOffsets;
     public final int[] targets;
     public final short[] connectionWeights;
-    public final int[] visualReceptors;
+    public final int[] visualReceptors, visualLeftReceptors, visualRightReceptors;
+    public final byte[] visualSides;
     public final int[] motorNeurons;
 
     private ConnectomeData(String dataset, String[] types, byte[] signs, int[] olfactory, int[] gustatory,
-                           int[] tactile, int[] rows, int[] targets, short[] weights, int[] visual, int[] motors) {
+                           int[] tactile, int[] rows, int[] targets, short[] weights, int[] visual,
+                           byte[] visualSides, int[] visualLeft, int[] visualRight, int[] motors) {
         this.dataset = dataset;
         this.neuronTypes = types;
         this.transmitterSigns = signs;
@@ -31,6 +33,9 @@ public final class ConnectomeData {
         this.targets = targets;
         this.connectionWeights = weights;
         this.visualReceptors = visual;
+        this.visualSides = visualSides;
+        this.visualLeftReceptors = visualLeft;
+        this.visualRightReceptors = visualRight;
         this.motorNeurons = motors;
     }
 
@@ -74,9 +79,14 @@ public final class ConnectomeData {
             for (int i = 0; i < m; i++) weights[i] = (short) in.u16();
 
             int[] visualTmp = new int[retinaCount];
+            byte[] visualSideTmp = new byte[retinaCount];
+            int leftCount = 0, rightCount = 0;
             for (int i = 0; i < retinaCount; i++) {
                 visualTmp[i] = in.i32();
-                in.skipFully(4); // side, hex1, hex2, receptor kind
+                visualSideTmp[i] = (byte) in.u8();
+                in.skipFully(3); // hex1, hex2, receptor kind
+                if (visualSideTmp[i] == 1) leftCount++;
+                else if (visualSideTmp[i] == 3) rightCount++;
             }
 
             String[] neuronTypes = new String[n];
@@ -99,8 +109,14 @@ public final class ConnectomeData {
                 if ("gustatory".equals(cl)) taste[gi++] = i;
                 if (isTactile(cl)) touch[xi++] = i;
             }
+            int[] visualLeft = new int[leftCount], visualRight = new int[rightCount];
+            for (int i = 0, li = 0, ri = 0; i < retinaCount; i++) {
+                if (visualSideTmp[i] == 1) visualLeft[li++] = visualTmp[i];
+                else if (visualSideTmp[i] == 3) visualRight[ri++] = visualTmp[i];
+            }
             for (int id : visualTmp) if (id < 0 || id >= n) throw new IOException("Retina neuron index outside connectome");
-            return new ConnectomeData(dataset, neuronTypes, signs, odor, taste, touch, rows, targets, weights, visualTmp, motors);
+            return new ConnectomeData(dataset, neuronTypes, signs, odor, taste, touch, rows, targets, weights,
+                    visualTmp, visualSideTmp, visualLeft, visualRight, motors);
         }
     }
 

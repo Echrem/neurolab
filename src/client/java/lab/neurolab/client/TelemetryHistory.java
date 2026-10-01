@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Small bounded client-side ring history for the dashboard plots. */
 public final class TelemetryHistory {
     public static final int LIMIT = 180;
-    private static final int MAX_SERIES = 8;
     private static final long STALE_AFTER_NANOS = 10_000_000_000L;
     private static final ConcurrentHashMap<Integer, Series> DATA = new ConcurrentHashMap<>();
     private TelemetryHistory() {}
@@ -29,12 +28,6 @@ public final class TelemetryHistory {
     private static void prune() {
         long now = System.nanoTime();
         DATA.entrySet().removeIf(entry -> now - entry.getValue().lastUpdatedNanos() > STALE_AFTER_NANOS);
-        if (DATA.size() > MAX_SERIES) {
-            DATA.entrySet().stream()
-                    .sorted(java.util.Comparator.comparingLong(entry -> entry.getValue().lastUpdatedNanos()))
-                    .limit(DATA.size() - MAX_SERIES)
-                    .forEach(entry -> DATA.remove(entry.getKey(), entry.getValue()));
-        }
     }
 
     private static final class Series {

@@ -1,23 +1,27 @@
 package lab.neurolab.brain;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 /** Keeps neural integration off the server tick and publishes immutable observations. */
 public final class BrainWorker implements AutoCloseable {
+    private static final int WORKER_COUNT = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+    private static final ScheduledThreadPoolExecutor EXECUTOR = createExecutor();
     private final FlyBrain brain;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private volatile FlyBrain.Drive drive = new FlyBrain.Drive(0, 0, 0, 0, 0);
     private volatile Throwable failure;
     private volatile double realTimeFactor = 1.0;
-    private final Thread thread;
+    private final ScheduledFuture<?> task;
+    private long nextDueNanos;
 
-    public BrainWorker(ConnectomeData data, String label) {
+    public BrainWorker(ConnectomeData data) {
         brain = new FlyBrain(data);
-        thread = new Thread(this::run, "neurolab-brain-" + label);
-        thread.setDaemon(true);
-        thread.setPriority(Thread.NORM_PRIORITY - 1);
-        thread.start();
+        nextDueNanos = System.nanoTime();
+        task = EXECUTOR.scheduleAtFixedRate(this::run, 0, 50, TimeUnit.MILLISECONDS);
     }
 
     public void accept(FlyBrain.Drive next) { drive = next; }
@@ -26,20 +30,39 @@ public final class BrainWorker implements AutoCloseable {
     public double realTimeFactor() { return realTimeFactor; }
 
     private void run() {
-        long deadline = System.nanoTime();
-        while (running.get()) {
+        if (running.get()) {
             long started = System.nanoTime();
+            long scheduledAt = nextDueNanos;
+            nextDueNanos = scheduledAt + TimeUnit.MILLISECONDS.toNanos(50);
+            double queueDelayMs = Math.max(0, started - scheduledAt) / 1e6;
             try { brain.advance(drive); }
-            catch (Throwable problem) { failure = problem; running.set(false); break; }
+            catch (Throwable problem) {
+                failure = problem;
+                running.set(false);
+                throw new IllegalStateException("NeuroLab brain task failed", problem);
+            }
             double elapsedMs = (System.nanoTime() - started) / 1e6;
-            double sample = Math.min(1, 50.0 / Math.max(0.01, elapsedMs));
+            double sample = Math.min(1, 50.0 / Math.max(0.01, elapsedMs + queueDelayMs));
             realTimeFactor = realTimeFactor * 0.85 + sample * 0.15;
-            deadline += 50_000_000L;
-            long wait = deadline - System.nanoTime();
-            if (wait > 0) LockSupport.parkNanos(wait);
-            else if (wait < -500_000_000L) deadline = System.nanoTime();
         }
     }
 
-    @Override public void close() { running.set(false); thread.interrupt(); }
+    private static ScheduledThreadPoolExecutor createExecutor() {
+        ThreadFactory factory = new ThreadFactory() {
+            private int sequence;
+            @Override public synchronized Thread newThread(Runnable task) {
+                Thread thread = new Thread(task, "neurolab-brain-pool-" + ++sequence);
+                thread.setDaemon(true);
+                thread.setPriority(Thread.NORM_PRIORITY - 1);
+                return thread;
+            }
+        };
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(WORKER_COUNT, factory);
+        executor.setRemoveOnCancelPolicy(true);
+        return executor;
+    }
+
+    public static int workerCount() { return WORKER_COUNT; }
+    public FlyBrain.Drive latestDrive() { return drive; }
+    @Override public void close() { running.set(false); task.cancel(false); }
 }

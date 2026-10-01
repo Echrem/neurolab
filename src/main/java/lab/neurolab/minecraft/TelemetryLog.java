@@ -39,7 +39,13 @@ public final class TelemetryLog {
                 + ",\"spikes\":" + p.spikes() + ",\"activeNeurons\":" + p.active()
                 + ",\"forward\":" + p.forward() + ",\"turn\":" + p.turn()
                 + ",\"lift\":" + p.lift() + ",\"realTimeFactor\":" + p.realTimeFactor()
-                + ",\"escape\":" + p.escape() + "}";
+                + ",\"escape\":" + p.escape() + ",\"light\":" + p.light()
+                + ",\"leftEye\":" + p.leftEye() + ",\"rightEye\":" + p.rightEye()
+                + ",\"looming\":" + p.looming() + ",\"touch\":" + p.touch()
+                + ",\"odor\":" + p.odor() + ",\"taste\":" + p.taste()
+                + ",\"bodyForward\":" + p.bodyForward() + ",\"bodyTurn\":" + p.bodyTurn()
+                + ",\"bodyLift\":" + p.bodyLift() + ",\"bodyEscape\":" + p.bodyEscape()
+                + ",\"reflex\":" + p.reflex() + ",\"testStimulus\":" + p.testStimulus() + "}";
         if (!QUEUE.offer(line)) DROPPED.increment();
     }
 

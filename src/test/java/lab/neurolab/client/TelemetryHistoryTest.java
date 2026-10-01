@@ -5,7 +5,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TelemetryHistoryTest {
     @AfterEach
@@ -26,10 +25,10 @@ class TelemetryHistoryTest {
     }
 
     @Test
-    void boundsTheNumberOfMobSeries() {
+    void keepsConcurrentMobSeriesBeyondTheFormerEightMobLimit() {
         for (int id = 0; id < 12; id++) TelemetryHistory.accept(packet(id, id));
 
-        assertTrue(TelemetryHistory.snapshot().size() <= 8);
+        assertEquals(12, TelemetryHistory.snapshot().size());
     }
 
     private static BrainTelemetryPayload packet(int entityId, int spikes) {
