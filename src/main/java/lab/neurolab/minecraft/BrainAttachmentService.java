@@ -17,7 +17,9 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Locale;
-import java.util.EnumMap;
+import lab.neurolab.brain.ControlMode;
+import lab.neurolab.brain.StimulusSchedule;
+import lab.neurolab.brain.StimulusSchedule.Sense;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -71,7 +73,7 @@ public final class BrainAttachmentService {
         catch (IllegalArgumentException invalid) {
             return "Unknown sense. Use eye, left_eye, right_eye, looming, touch, odor, or taste.";
         }
-        attachment.stimuli.put(sense, new Pulse(strength, mob.tickCount + durationTicks));
+        attachment.stimuli.start(sense, strength, durationTicks, mob.level().getGameTime());
         return null;
     }
 
@@ -81,6 +83,7 @@ public final class BrainAttachmentService {
     }
 
     public static boolean detach(Mob mob) {
+        AUTO_ATTACH_PENDING.remove(mob.getUUID());
         Attachment a = ATTACHED.remove(mob.getUUID());
         if (a == null) return false;
         a.worker.close();
@@ -108,13 +111,14 @@ public final class BrainAttachmentService {
                 detach(mob);
                 continue;
             }
-            FlyBrain.Drive senses = a.stimuli.apply(sample(mob, level), mob.tickCount);
+            FlyBrain.Drive senses = a.stimuli.apply(sample(mob, level), level.getGameTime());
             a.worker.accept(senses);
             FlyBrain.Snapshot neural = a.worker.snapshot();
             EmbodimentDecoder.Command body = EmbodimentDecoder.decode(neural, senses, mob.tickCount,
-                    mob.getUUID().getLeastSignificantBits());
+                    mob.getUUID().getLeastSignificantBits(), a.mode);
             if (mob.tickCount % 2 == 0)
-                NeuroLabMod.sendTelemetry(mob, neural, senses, body, a.stimuli.isActive());
+                NeuroLabMod.sendTelemetry(mob, neural, senses, body, a.stimuli.activeCount(level.getGameTime()) > 0, a.mode);
+            if (!a.mode.controlsBody()) continue;
             double turn = body.turn();
             mob.setYRot(mob.getYRot() + (float) (turn * 6));
             mob.yBodyRot = mob.getYRot();
@@ -125,13 +129,14 @@ public final class BrainAttachmentService {
             double vx = -Math.sin(newYaw) * forward;
             double vz = Math.cos(newYaw) * forward;
             double vy = velocity.y;
-            if (mob instanceof net.minecraft.world.entity.FlyingMob ||
+            if (mob instanceof net.minecraft.world.entity.monster.Ghast ||
+                    mob instanceof net.minecraft.world.entity.monster.Phantom ||
                     mob.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FLYING_SPEED) != null) {
                 double lift = Math.max(0, body.lift() * 0.16 + (body.escape() ? 0.08 : 0));
                 vy = Math.max(-0.12, Math.min(0.16, velocity.y * 0.8 + lift));
             } else if (body.escape() && mob.onGround()) vy = Math.max(velocity.y, 0.42);
             mob.setDeltaMovement(vx, vy, vz);
-            mob.hasImpulse = true;
+            mob.needsSync = true;
         }
     }
 
@@ -165,6 +170,32 @@ public final class BrainAttachmentService {
         return (float) level.getMaxLocalRawBrightness(BlockPos.containing(sight.getLocation())) / 15f;
     }
 
+    public static String setMode(Mob mob, ControlMode mode) {
+        Attachment a = ATTACHED.get(mob.getUUID());
+        if (a == null) return "Attach a brain to this mob first.";
+        a.mode = mode;
+        mob.setNoAi(mode.noAi(a.originalNoAi));
+        return null;
+    }
+
+    public static String clearStimuli(Mob mob) {
+        Attachment a = ATTACHED.get(mob.getUUID());
+        if (a == null) return "Attach a brain to this mob first.";
+        a.stimuli.clear();
+        return null;
+    }
+
+    public static String describe(Mob mob) {
+        Attachment a = ATTACHED.get(mob.getUUID());
+        if (a == null) return mob.getName().getString() + ": no NeuroLab brain attached.";
+        FlyBrain.Snapshot snapshot = a.worker.snapshot();
+        return String.format(Locale.ROOT,
+                "%s · mode %s · neural tick %d · spikes %d · active %d · real-time %.2fx · test pulses %d · original AI %s",
+                mob.getName().getString(), a.mode.id(), snapshot.tick(), snapshot.spikes(),
+                snapshot.activeNeurons(), a.worker.realTimeFactor(),
+                a.stimuli.activeCount(mob.level().getGameTime()), a.originalNoAi ? "disabled" : "enabled");
+    }
+
     public static CompletableFuture<ConnectomeData> connectomeStatus() { return data; }
     public static int attachedCount() { return ATTACHED.size(); }
     public static int workerCount() { return BrainWorker.workerCount(); }
@@ -179,14 +210,13 @@ public final class BrainAttachmentService {
         AUTO_ATTACH_PENDING.clear();
     }
 
-    private enum Sense { EYE, LEFT_EYE, RIGHT_EYE, LOOMING, TOUCH, ODOR, TASTE }
-    private record Pulse(float strength, int expiresAt) {}
 
     private static final class Attachment {
         private final Mob mob;
         private final BrainWorker worker;
         private final boolean originalNoAi;
-        private final Stimuli stimuli = new Stimuli();
+        private final StimulusSchedule stimuli = new StimulusSchedule();
+        private ControlMode mode = ControlMode.ASSISTED;
 
         private Attachment(Mob mob, BrainWorker worker, boolean originalNoAi) {
             this.mob = mob;
@@ -195,28 +225,4 @@ public final class BrainAttachmentService {
         }
     }
 
-    private static final class Stimuli {
-        private final EnumMap<Sense, Pulse> active = new EnumMap<>(Sense.class);
-
-        private void put(Sense sense, Pulse pulse) { active.put(sense, pulse); }
-
-        private boolean isActive() { return !active.isEmpty(); }
-
-        private FlyBrain.Drive apply(FlyBrain.Drive natural, int tick) {
-            active.entrySet().removeIf(entry -> entry.getValue().expiresAt() <= tick);
-            float light = Math.max(natural.light(), strength(Sense.EYE));
-            float left = Math.max(natural.leftEye(), Math.max(strength(Sense.EYE), strength(Sense.LEFT_EYE)));
-            float right = Math.max(natural.rightEye(), Math.max(strength(Sense.EYE), strength(Sense.RIGHT_EYE)));
-            return new FlyBrain.Drive(light, left, right,
-                    Math.max(natural.looming(), strength(Sense.LOOMING)),
-                    Math.max(natural.tactile(), strength(Sense.TOUCH)),
-                    Math.max(natural.odor(), strength(Sense.ODOR)),
-                    Math.max(natural.taste(), strength(Sense.TASTE)));
-        }
-
-        private float strength(Sense sense) {
-            Pulse pulse = active.get(sense);
-            return pulse == null ? 0 : pulse.strength();
-        }
-    }
 }

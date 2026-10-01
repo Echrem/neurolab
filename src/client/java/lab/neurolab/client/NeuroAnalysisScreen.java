@@ -17,6 +17,12 @@ public final class NeuroAnalysisScreen extends Screen {
     private static final int PANEL = 0xFF0B1118;
     private static final int PANEL_INNER = 0xFF16232F;
     private int selectedEntityId = -1;
+    private List<TelemetryHistory.SeriesView> frozenStreams;
+    private Button freezeButton;
+    private int chartScroll;
+    private int maxChartScroll;
+    private int chartViewportTop;
+    private int chartViewportBottom;
 
     public NeuroAnalysisScreen() {
         super(Component.translatable("screen.neurolab.analysis"));
@@ -26,6 +32,8 @@ public final class NeuroAnalysisScreen extends Screen {
     protected void init() {
         int panelW = Math.min(1040, width - 32);
         int panelX = (width - panelW) / 2;
+        freezeButton = addRenderableWidget(Button.builder(Component.literal(frozenStreams == null ? "FREEZE" : "RESUME"),
+                        b -> toggleFreeze()).bounds(panelX + panelW - 190, 22, 80, 18).build());
         addRenderableWidget(Button.builder(Component.literal("SETTINGS"), b ->
                         Minecraft.getInstance().setScreen(new NeuroSettingsScreen(this)))
                 .bounds(panelX + panelW - 102, 22, 84, 18).build());
@@ -44,10 +52,12 @@ public final class NeuroAnalysisScreen extends Screen {
 
         int left = panelX + 18;
         int contentW = panelW - 36;
-        g.drawString(font, "NEUROLAB  /  ENGINEERING TELEMETRY", left, panelY + 12, 0xFFB9ECFF, true);
-        g.drawString(font, "LIVE · server-authoritative · bounded history", left, panelY + 29, 0xFFE0EAF2, true);
+        g.drawString(font, "NEUROLAB", left, panelY + 12, 0xFFB9ECFF, true);
+        g.drawString(font, font.plainSubstrByWidth(
+                (frozenStreams == null ? "LIVE" : "FROZEN · display only") + " · server simulation continues",
+                Math.max(0, contentW)), left, panelY + 29, 0xFFE0EAF2, true);
 
-        List<TelemetryHistory.SeriesView> streams = TelemetryHistory.snapshot().stream()
+        List<TelemetryHistory.SeriesView> streams = streams().stream()
                 .filter(s -> !s.samples().isEmpty())
                 .sorted(Comparator.comparingInt(TelemetryHistory.SeriesView::entityId)).toList();
         if (streams.isEmpty()) {
@@ -115,7 +125,8 @@ public final class NeuroAnalysisScreen extends Screen {
                             {"BODY FWD", percent(latest.bodyForward())},
                             {"BODY TURN", String.format(Locale.ROOT, "%+.2f", latest.bodyTurn())},
                             {"BODY LIFT", percent(latest.bodyLift())},
-                            {"CONTROL", latest.reflex() ? "REFLEX LAYER" : "CONNECTOME"},
+                            {"MODE", latest.mode().name()},
+                            {"CONTROL", controlLabel(latest)},
                             {"NEURAL ESCAPE", latest.escape() ? "ACTIVE" : "idle"},
                             {"BODY ESCAPE", latest.bodyEscape() ? "ACTIVE" : "idle"},
                             {"SPIKES", Integer.toString(latest.spikes())},
@@ -123,6 +134,9 @@ public final class NeuroAnalysisScreen extends Screen {
                             {"REAL-TIME", String.format(Locale.ROOT, "%.2fx", latest.realTimeFactor())}
                     }, latest.escape() ? 0xFFFF9F7A : 0xFFFFC16D);
         }
+        chartViewportTop = chartTop;
+        chartViewportBottom = chartBottom;
+        maxChartScroll = 0;
         if (metrics.isEmpty()) {
             g.drawCenteredString(font, "Enable at least one plot in SETTINGS", centerX + centerW / 2,
                     chartTop + 12, 0xFFFFD48A);
@@ -130,21 +144,48 @@ public final class NeuroAnalysisScreen extends Screen {
             int cols = centerW >= 400 ? 2 : 1;
             int rows = (metrics.size() + cols - 1) / cols;
             int chartW = Math.max(1, (centerW - gap * (cols - 1)) / cols);
-            int chartH = Math.max(32, (chartBottom - chartTop - gap * (rows - 1)) / rows);
+            int chartH = Math.max(64, (chartBottom - chartTop - gap * (rows - 1)) / rows);
+            maxChartScroll = Math.max(0, rows * (chartH + gap) - gap - (chartBottom - chartTop));
+            chartScroll = Math.min(chartScroll, maxChartScroll);
+            g.enableScissor(centerX, chartTop, centerX + centerW, Math.max(chartTop, chartBottom));
             for (int i = 0; i < metrics.size(); i++) {
                 int col = i % cols;
                 int row = i / cols;
                 int chartX = centerX + col * (chartW + gap);
-                int chartY = chartTop + row * (chartH + gap);
+                int chartY = chartTop + row * (chartH + gap) - chartScroll;
                 drawChart(g, chartX, chartY, chartW, chartH, selected.samples(), metrics.get(i));
             }
+            g.disableScissor();
         }
 
         String nav = streams.size() > 1
                 ? "← / → select mob  ·  " + (selectedIndex + 1) + " of " + streams.size() + " tracked"
                 : "1 tracked mob";
-        drawFooter(g, left, panelBottom - 23, contentW, nav + "    ·    Esc close  ·  Ctrl + N reopen");
+        drawFooter(g, left, panelBottom - 23, contentW, nav + " · Space freeze/resume · Wheel scroll · Esc close");
         super.render(g, mouseX, mouseY, partialTick);
+    }
+
+    private List<TelemetryHistory.SeriesView> streams() {
+        return frozenStreams == null ? TelemetryHistory.snapshot() : frozenStreams;
+    }
+
+    private void toggleFreeze() {
+        frozenStreams = frozenStreams == null ? List.copyOf(TelemetryHistory.snapshot()) : null;
+        freezeButton.setMessage(Component.literal(frozenStreams == null ? "FREEZE" : "RESUME"));
+    }
+
+    private static String controlLabel(BrainTelemetryPayload sample) {
+        return !sample.mode().controlsBody() ? "OBSERVATION ONLY"
+                : sample.reflex() ? "REFLEX LAYER" : "NEURAL OUTPUT";
+    }
+
+    @Override
+    public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if (y >= chartViewportTop && y < chartViewportBottom && maxChartScroll > 0) {
+            chartScroll = Math.max(0, Math.min(maxChartScroll, chartScroll - (int) (vertical * 36)));
+            return true;
+        }
+        return super.mouseScrolled(x, y, horizontal, vertical);
     }
 
     private void drawSignalFlow(GuiGraphics g, int x, int y, int w, BrainTelemetryPayload sample) {
@@ -162,8 +203,8 @@ public final class NeuroAnalysisScreen extends Screen {
         flowCard(g, sensorX, cardY, cardW, 38, "WORLD SENSES", "eyes · looming · touch · odor · taste", 0xFF65B8D5);
         flowCard(g, brainX, cardY, cardW, 38, "FLY CONNECTOME",
                 sample.active() + " active · " + sample.spikes() + " spikes", 0xFFAF8BE8);
-        flowCard(g, motorX, cardY, cardW, 38, "NEURAL → BODY",
-                sample.reflex() ? "reflex fallback active" : String.format(Locale.ROOT,
+        flowCard(g, motorX, cardY, cardW, 38, sample.mode().name(),
+                !sample.mode().controlsBody() ? "observation only; AI restored" : sample.reflex() ? "reflex fallback active" : String.format(Locale.ROOT,
                         "fwd %.0f%% · turn %+.2f", sample.forward() * 100, sample.turn()),
                 0xFFFFB968);
         int mid = cardY + 19;
@@ -265,9 +306,11 @@ public final class NeuroAnalysisScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        int keyCode = event.key();
+        if (keyCode == GLFW.GLFW_KEY_SPACE) { toggleFreeze(); return true; }
         if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT) {
-            List<TelemetryHistory.SeriesView> streams = TelemetryHistory.snapshot().stream()
+            List<TelemetryHistory.SeriesView> streams = streams().stream()
                     .filter(s -> !s.samples().isEmpty())
                     .sorted(Comparator.comparingInt(TelemetryHistory.SeriesView::entityId)).toList();
             if (streams.size() > 1) {
@@ -277,7 +320,7 @@ public final class NeuroAnalysisScreen extends Screen {
                 return true;
             }
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override

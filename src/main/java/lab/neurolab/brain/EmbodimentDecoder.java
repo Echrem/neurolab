@@ -7,6 +7,14 @@ public final class EmbodimentDecoder {
     private EmbodimentDecoder() {}
 
     public static Command decode(FlyBrain.Snapshot neural, FlyBrain.Drive senses, long tick, long identitySeed) {
+        return decode(neural, senses, tick, identitySeed, ControlMode.ASSISTED);
+    }
+
+    public static Command decode(FlyBrain.Snapshot neural, FlyBrain.Drive senses, long tick,
+                                 long identitySeed, ControlMode mode) {
+        if (!mode.controlsBody()) return new Command(0, 0, 0, false, false);
+        if (mode == ControlMode.NEURAL)
+            return new Command(neural.forward(), neural.turn(), neural.lift(), neural.escape(), false);
         if (neural.forward() > 0 || Math.abs(neural.turn()) > 0 || neural.lift() > 0 || neural.escape())
             return new Command(neural.forward(), neural.turn(), neural.lift(), neural.escape(), false);
 

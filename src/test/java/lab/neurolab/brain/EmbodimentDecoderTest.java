@@ -36,4 +36,28 @@ final class EmbodimentDecoderTest {
         assertEquals(0.25, command.forward());
         assertEquals(-0.5, command.turn());
     }
+
+    @Test
+    void neuralOnlyModeDoesNotInventMovementEvenWhenThreatened() {
+        var command = EmbodimentDecoder.decode(SILENT, new FlyBrain.Drive(1, 1, 1, 1, 1),
+                100, 12, ControlMode.NEURAL);
+        assertEquals(new EmbodimentDecoder.Command(0, 0, 0, false, false), command);
+    }
+
+    @Test
+    void observationNeverAppliesEvenStrongNeuralOutput() {
+        var neural = new FlyBrain.Snapshot(2, 5, 3, 1, -1, 1, true, Map.of());
+        var command = EmbodimentDecoder.decode(neural, new FlyBrain.Drive(1, 1, 1, 1, 1),
+                100, 12, ControlMode.OBSERVE);
+        assertEquals(new EmbodimentDecoder.Command(0, 0, 0, false, false), command);
+        assertFalse(ControlMode.OBSERVE.controlsBody());
+    }
+
+    @Test
+    void modesPreserveAnOriginallyDisabledAiWhenObserving() {
+        assertFalse(ControlMode.OBSERVE.noAi(false));
+        assertTrue(ControlMode.OBSERVE.noAi(true));
+        assertTrue(ControlMode.NEURAL.noAi(false));
+        assertTrue(ControlMode.ASSISTED.noAi(false));
+    }
 }

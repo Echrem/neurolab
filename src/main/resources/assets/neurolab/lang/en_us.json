@@ -1,5 +1,5 @@
 {
-  "category.neurolab": "NeuroLab",
+  "key.category.neurolab.main": "NeuroLab",
   "key.neurolab.analysis": "Neural analysis dashboard (Ctrl + N)",
   "screen.neurolab.analysis": "NeuroLab Analysis",
   "entity.neurolab.neuro_fly": "Neuro Fly",

@@ -34,8 +34,10 @@ public final class TelemetryLog {
         writer.start();
     }
 
-    public static void record(BrainTelemetryPayload p) {
+    public static void record(BrainTelemetryPayload p, java.util.UUID entityUuid, String dimension, long gameTick) {
         String line = "{\"time\":\"" + Instant.now() + "\",\"entityId\":" + p.entityId()
+                + ",\"entityUuid\":\"" + entityUuid + "\",\"dimension\":\"" + dimension
+                + "\",\"gameTick\":" + gameTick + ",\"mode\":\"" + p.mode().id() + "\""
                 + ",\"spikes\":" + p.spikes() + ",\"activeNeurons\":" + p.active()
                 + ",\"forward\":" + p.forward() + ",\"turn\":" + p.turn()
                 + ",\"lift\":" + p.lift() + ",\"realTimeFactor\":" + p.realTimeFactor()

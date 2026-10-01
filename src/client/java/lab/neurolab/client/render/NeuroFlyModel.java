@@ -1,7 +1,7 @@
 package lab.neurolab.client.render;
 
-import lab.neurolab.entity.NeuroFlyEntity;
-import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
@@ -10,13 +10,12 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.client.model.geom.PartPose;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
-public final class NeuroFlyModel extends HierarchicalModel<NeuroFlyEntity> {
+public final class NeuroFlyModel extends EntityModel<LivingEntityRenderState> {
     public static final ModelLayerLocation LAYER = new ModelLayerLocation(
-            ResourceLocation.fromNamespaceAndPath("neurolab", "neuro_fly"), "main");
+            Identifier.fromNamespaceAndPath("neurolab", "neuro_fly"), "main");
 
-    private final ModelPart root;
     private final ModelPart head;
     private final ModelPart leftWing;
     private final ModelPart rightWing;
@@ -28,8 +27,7 @@ public final class NeuroFlyModel extends HierarchicalModel<NeuroFlyEntity> {
     private final ModelPart rightBackLeg;
 
     public NeuroFlyModel(ModelPart root) {
-        super(net.minecraft.client.renderer.RenderType::entityCutoutNoCull);
-        this.root = root;
+        super(root);
         head = root.getChild("head");
         leftWing = root.getChild("left_wing");
         rightWing = root.getChild("right_wing");
@@ -41,7 +39,6 @@ public final class NeuroFlyModel extends HierarchicalModel<NeuroFlyEntity> {
         rightBackLeg = root.getChild("right_back_leg");
     }
 
-    @Override public ModelPart root() { return root; }
 
     public static LayerDefinition createLayer() {
         MeshDefinition mesh = new MeshDefinition();
@@ -82,8 +79,13 @@ public final class NeuroFlyModel extends HierarchicalModel<NeuroFlyEntity> {
                 PartPose.offsetAndRotation(x, y, z, pitch, 0.0f, roll));
     }
 
-    @Override public void setupAnim(NeuroFlyEntity entity, float limbSwing, float limbSwingAmount,
-                                    float ageInTicks, float netHeadYaw, float headPitch) {
+    @Override public void setupAnim(LivingEntityRenderState state) {
+        super.setupAnim(state);
+        float limbSwing = state.walkAnimationPos;
+        float limbSwingAmount = state.walkAnimationSpeed;
+        float ageInTicks = state.ageInTicks;
+        float netHeadYaw = state.yRot;
+        float headPitch = state.xRot;
         head.yRot = netHeadYaw * ((float) Math.PI / 180.0f) * 0.35f;
         head.xRot = headPitch * ((float) Math.PI / 180.0f) * 0.35f;
         float beat = (float) Math.sin(ageInTicks * 2.2f) * 0.42f;

@@ -2,6 +2,9 @@ package lab.neurolab.minecraft;
 
 import lab.neurolab.brain.FlyBrain;
 import lab.neurolab.brain.EmbodimentDecoder;
+import lab.neurolab.brain.ControlMode;
+import lab.neurolab.brain.StimulusSchedule;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.Commands;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -16,7 +19,7 @@ import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraft.network.protocol.PacketFlow;
@@ -29,7 +32,7 @@ public final class NeuroLabMod {
     public static final String MOD_ID = "neurolab";
 
     public NeuroLabMod(FMLJavaModLoadingContext context) {
-        var modBus = context.getModEventBus();
+        var modBus = context.getModBusGroup();
         NeuroLabEntities.ENTITY_TYPES.register(modBus);
         NeuroLabEntities.ITEMS.register(modBus);
         TelemetryNetwork.initialize();
@@ -41,7 +44,7 @@ public final class NeuroLabMod {
 
         @SubscribeEvent
         public static void registerCommands(RegisterCommandsEvent event) {
-            event.getDispatcher().register(Commands.literal("neurolab").requires(source -> source.hasPermission(2))
+            event.getDispatcher().register(Commands.literal("neurolab").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                     .then(Commands.literal("attach").then(Commands.argument("mob", EntityArgument.entity())
                             .executes(ctx -> {
                                 Entity entity = EntityArgument.getEntity(ctx, "mob");
@@ -87,14 +90,56 @@ public final class NeuroLabMod {
                                 + BrainAttachmentService.workerCount()), false);
                         return 1;
                     }))
+                    .then(Commands.literal("inspect").then(Commands.argument("mob", EntityArgument.entity())
+                            .executes(ctx -> withMob(ctx, mob -> {
+                                ctx.getSource().sendSuccess(() -> Component.literal(BrainAttachmentService.describe(mob)), false);
+                                return null;
+                            }))))
+                    .then(Commands.literal("unstimulate").then(Commands.argument("mob", EntityArgument.entity())
+                            .executes(ctx -> withMob(ctx, mob -> {
+                                String failure = BrainAttachmentService.clearStimuli(mob);
+                                if (failure == null) ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "Test pulses cleared; natural senses continue."), false);
+                                return failure;
+                            }))))
+                    .then(Commands.literal("mode").then(Commands.argument("mob", EntityArgument.entity())
+                            .then(Commands.argument("mode", StringArgumentType.word())
+                                    .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                            java.util.Arrays.stream(ControlMode.values()).map(ControlMode::id), builder))
+                                    .executes(ctx -> withMob(ctx, mob -> {
+                                        ControlMode mode;
+                                        try { mode = ControlMode.valueOf(StringArgumentType.getString(ctx, "mode")
+                                                .toUpperCase(java.util.Locale.ROOT)); }
+                                        catch (IllegalArgumentException invalid) { return "Use assisted, neural, or observe."; }
+                                        String failure = BrainAttachmentService.setMode(mob, mode);
+                                        if (failure == null) ctx.getSource().sendSuccess(() -> Component.literal(
+                                                "Control mode: " + mode.id() + (mode == ControlMode.OBSERVE
+                                                        ? ". Original AI restored; neural output is observation only."
+                                                        : mode == ControlMode.NEURAL ? ". Reflex fallback disabled."
+                                                        : ". Reflex fallback enabled when neural output is silent.")), false);
+                                        return failure;
+                                    })))))
                     .then(Commands.literal("stimulate")
                             .then(Commands.argument("mob", EntityArgument.entity())
                                     .then(Commands.argument("sense", StringArgumentType.word())
+                                            .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                                    java.util.Arrays.stream(StimulusSchedule.Sense.values())
+                                                            .map(sense -> sense.name().toLowerCase(java.util.Locale.ROOT)), builder))
                                             .then(Commands.argument("strength", FloatArgumentType.floatArg(0, 1))
                                                     .executes(ctx -> stimulate(ctx, 40))
                                                     .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 1200))
                                                             .executes(ctx -> stimulate(ctx,
                                                                     IntegerArgumentType.getInteger(ctx, "ticks")))))))));
+        }
+
+        private static int withMob(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx,
+                                   java.util.function.Function<Mob, String> action)
+                throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+            Entity entity = EntityArgument.getEntity(ctx, "mob");
+            String failure = entity instanceof Mob mob ? action.apply(mob) : "Choose a living mob entity.";
+            if (failure == null) return 1;
+            ctx.getSource().sendFailure(Component.literal(failure));
+            return 0;
         }
 
         private static int stimulate(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx,
@@ -146,14 +191,14 @@ public final class NeuroLabMod {
     }
 
     static void sendTelemetry(Mob mob, FlyBrain.Snapshot snapshot, FlyBrain.Drive senses,
-                              EmbodimentDecoder.Command body, boolean testStimulus) {
+                              EmbodimentDecoder.Command body, boolean testStimulus, ControlMode mode) {
         BrainTelemetryPayload packet = new BrainTelemetryPayload(mob.getId(), (int) snapshot.spikes(),
                 snapshot.activeNeurons(), (float) snapshot.forward(), (float) snapshot.turn(),
                 (float) snapshot.lift(), (float) BrainAttachmentService.realTimeFactor(mob), snapshot.escape(),
                 senses.light(), senses.leftEye(), senses.rightEye(), senses.looming(), senses.tactile(),
                 senses.odor(), senses.taste(), (float) body.forward(), (float) body.turn(),
-                (float) body.lift(), body.escape(), body.reflex(), testStimulus);
-        TelemetryLog.record(packet);
+                (float) body.lift(), body.escape(), body.reflex(), testStimulus, mode);
+        TelemetryLog.record(packet, mob.getUUID(), mob.level().dimension().identifier().toString(), mob.level().getGameTime());
         TelemetryNetwork.CHANNEL.send(packet, PacketDistributor.TRACKING_ENTITY.with(mob));
     }
 }

@@ -20,6 +20,7 @@ minecraft {
     runs {
         configureEach {
             workingDir = project.file('run')
+            systemProperties.put('eventbus.api.strictRuntimeChecks', 'true')
             mods {
                 neurolab {
                     source sourceSets.main
@@ -40,6 +41,7 @@ repositories {
 }
 
 dependencies {
+    annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.5'
     implementation minecraft.dependency("net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

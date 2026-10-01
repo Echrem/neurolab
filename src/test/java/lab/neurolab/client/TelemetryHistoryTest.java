@@ -31,6 +31,17 @@ class TelemetryHistoryTest {
         assertEquals(12, TelemetryHistory.snapshot().size());
     }
 
+    @Test
+    void frozenSnapshotsRemainStableWhileLiveTelemetryContinues() {
+        TelemetryHistory.accept(packet(7, 10));
+        var frozen = TelemetryHistory.snapshot();
+        TelemetryHistory.accept(packet(7, 20));
+        TelemetryHistory.clear();
+        assertEquals(1, frozen.getFirst().samples().size());
+        assertEquals(10, frozen.getFirst().samples().getFirst().spikes());
+        assertEquals(0, TelemetryHistory.snapshot().size());
+    }
+
     private static BrainTelemetryPayload packet(int entityId, int spikes) {
         return new BrainTelemetryPayload(entityId, spikes, 42, 0.25f, -0.4f,
                 0.1f, 0.8f, false);

@@ -6,7 +6,9 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
+Version 0.3.0 targets Minecraft 1.21.11 with Forge 61.2.0. Use the 0.1.x releases for Minecraft 1.21.1; the new JAR is not compatible with that older game version.
+
+This is an early research prototype targeting Minecraft 1.21.11 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
 ## What is included
 
@@ -21,18 +23,18 @@ The implementation is intentionally small enough to inspect. There is no separat
 
 ## Requirements
 
-- Minecraft **1.21.1**
-- Minecraft Forge **52.1.x** for Minecraft 1.21.1
+- Minecraft **1.21.11**
+- Minecraft Forge **61.2.x** for Minecraft 1.21.11
 - Java **21**
 
 Install the mod JAR on the server and on every client that needs the custom entity renderer and analysis screen. For a local single-player experiment, the client installation is enough.
 
 ## Install a published release
 
-1. Install [Minecraft Forge for 1.21.1](https://files.minecraftforge.net/net/minecraftforge/forge/index_1.21.1.html) and use Java 21 to run the game.
+1. Install [Minecraft Forge for 1.21.11](https://files.minecraftforge.net/net/minecraftforge/forge/index_1.21.11.html) and use Java 21 to run the game.
 2. Download the `neurolab-<version>.jar` asset from [GitHub Releases](https://github.com/Echrem/neurolab/releases/latest). Choose the regular mod JAR, not the `-sources.jar` or GitHub's automatically generated **Source code** archives.
 3. Put the mod JAR in the Forge profile's `mods` folder. The usual folders are `%appdata%\.minecraft\mods` on Windows, `~/Library/Application Support/minecraft/mods` on macOS, and `~/.minecraft/mods` on Linux. For a third-party launcher, use that launcher's instance-specific `mods` folder.
-4. Select the Forge 1.21.1 profile and launch the game. Back up your test world before trying the prototype.
+4. Select the Forge 1.21.11 profile and launch the game. Back up your test world before trying the prototype.
 
 For a dedicated server, install the mod on the server and on each client joining it. Release builds are published automatically after a matching `v*` version tag passes the test-and-build workflow; see [Contributing](CONTRIBUTING.md) for the versioning workflow.
 
@@ -76,9 +78,31 @@ Useful checks:
 /neurolab detach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
 ```
 
-Neuro Fly spawn eggs and `/summon neurolab:neuro_fly` attach automatically. Other mobs can be attached with `/neurolab attach <entity selector>`; use the exact type in the selector, such as `minecraft:sheep`, `minecraft:villager`, or `minecraft:spider`. The mod has no fixed attached-mob limit. Brain tasks share a CPU-sized worker pool, so adding many mobs can reduce the real-time factor and increase server load. Attaching pauses the mob's vanilla AI; detaching or unloading its chunk restores the AI state that was present before attachment.
+Neuro Fly spawn eggs and `/summon neurolab:neuro_fly` attach automatically. Other mobs can be attached with `/neurolab attach <entity selector>`; use the exact type in the selector, such as `minecraft:sheep`, `minecraft:villager`, or `minecraft:spider`. The mod has no fixed attached-mob limit. Brain tasks share a CPU-sized worker pool, so adding many mobs can reduce the real-time factor and increase server load. Attaching starts in `assisted` mode and pauses the mob's vanilla AI; detaching or unloading its chunk restores the AI state that was present before attachment.
 
 For controlled input/output checks, use `/neurolab stimulate <mob> <sense> <strength> [ticks]`. Strength is 0–1, duration defaults to 40 ticks, and the maximum duration is 1200 ticks. Supported senses are `eye`, `left_eye`, `right_eye`, `looming`, `touch`, `odor`, and `taste`. Stimuli enter sensory channels only; this command does not set motor output directly. NeuroLab commands require operator permission on a server.
+
+## Controlled comparisons
+
+Switch an attached mob between three explicit conditions without restarting its neural worker:
+
+| Mode | Neural simulation | Minecraft movement |
+| --- | --- | --- |
+| `assisted` (default) | Running | Neural output, with the labeled reflex/exploration fallback when silent |
+| `neural` | Running | Neural output only; silent motor channels produce no forward/turn/lift commands |
+| `observe` | Running | Original AI state restored; NeuroLab records output but does not apply body commands |
+
+```mcfunction
+/neurolab mode @e[type=neurolab:neuro_fly,limit=1,sort=nearest] neural
+/neurolab inspect @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
+/neurolab stimulate @e[type=neurolab:neuro_fly,limit=1,sort=nearest] left_eye 0.8 100
+/neurolab unstimulate @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
+/neurolab mode @e[type=neurolab:neuro_fly,limit=1,sort=nearest] observe
+```
+
+Mode and sense arguments support tab completion. `inspect` reports the mode, neural tick, spikes, active cells, real-time factor, and active test-pulse count. `unstimulate` removes all test pulses while natural sensory input continues. Setting a sense's stimulus strength to zero cancels that sense only. Reapplying a sense replaces its strength and duration. Durations use server world ticks and expire at the exact deadline.
+
+Changing modes preserves neural state and existing pulses; it is not a reset or a matched independent trial. Normal physics still applies in `neural` mode. In `observe` mode, body-command fields are zero because NeuroLab applies none; they do not measure the mob's actual velocity. A mob whose AI was disabled before attachment remains AI-disabled in observation mode. Attachment and mode choices are session state and are not persisted across chunk unloads.
 
 ## How the controller works
 
@@ -100,13 +124,15 @@ The simulator injects events into annotated sensory populations rather than dire
 
 ## Reading the dashboard and logs
 
-Open the dashboard with **Ctrl+N**. Its side panels show three eye samples, looming, touch, odor, taste, neural motor output, and effective body commands. Up to sixteen plots cover those channels, spikes, active neurons, and real-time factor. **SETTINGS** toggles either side panel and each plot; these local preferences persist in `config/neurolab-dashboard.properties`. Use the left/right arrow keys to switch between tracked mobs. Each chart retains up to 180 samples; x positions represent sample order, not wall-clock time, and the server sends observations every two game ticks. A mob's plot is removed after ten seconds without new telemetry.
+Open the dashboard with **Ctrl+N**. Its side panels show three eye samples, looming, touch, odor, taste, neural motor output, and effective body commands. Up to sixteen plots cover those channels, spikes, active neurons, and real-time factor. **SETTINGS** toggles either side panel and each plot; these local preferences persist in `config/neurolab-dashboard.properties`. Use the left/right arrow keys to switch between tracked mobs. **FREEZE** or **Space** holds a snapshot of the plots for inspection; **RESUME** returns to live data. Only the display is frozen: the server, simulation, telemetry collection, and logs continue. Use the mouse wheel over the chart area to scroll through plots that do not fit vertically. Each chart retains up to 180 samples; x positions represent sample order, not wall-clock time, and the server sends observations every two game ticks. A mob's plot is removed after ten seconds without new telemetry.
 
 This panel visualizes decoded telemetry; it does not render the full connectome or per-neuron electrophysiology. Counts use a per-chart automatic range, while bounded control signals use their defined ranges; turn is plotted around a zero baseline so direction is visible. It is an inspection aid, not a calibrated measurement instrument. The server also appends observations to:
 
 ```text
 <world>/neurolab/events.jsonl
 ```
+
+Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; the expanded telemetry uses protocol 3.
 
 The JSONL log is intended for offline inspection and analysis. Avoid sharing it without checking it for world or server details you do not want to publish.
 
@@ -124,7 +150,7 @@ Build with JDK 21:
 ./gradlew clean test build
 ```
 
-The distributable Forge mod is written to `build/libs/neurolab-<version>.jar`. Tests currently cover connectome loading and core data/simulation invariants. They do not replace a client-and-server play test.
+The distributable Forge mod is written to `build/libs/neurolab-<version>.jar`. Tests cover connectome invariants, control-mode isolation, pulse timing and cancellation, immutable telemetry snapshots, wire encoding, and JSONL identity fields. They do not replace a client-and-server play test.
 
 ## Source layout
 

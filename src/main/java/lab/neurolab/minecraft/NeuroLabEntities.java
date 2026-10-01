@@ -1,7 +1,7 @@
 package lab.neurolab.minecraft;
 
 import lab.neurolab.entity.NeuroFlyEntity;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -9,8 +9,10 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.common.ForgeSpawnEggItem;
+import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -27,10 +29,12 @@ public final class NeuroLabEntities {
             () -> EntityType.Builder.of(NeuroFlyEntity::new, MobCategory.AMBIENT)
                     .sized(0.7f, 0.45f)
                     .clientTrackingRange(8)
-                    .build("neuro_fly"));
+                    .build(ResourceKey.create(Registries.ENTITY_TYPE, id("neuro_fly"))));
 
     public static final RegistryObject<Item> NEURO_FLY_SPAWN_EGG = ITEMS.register("neuro_fly_spawn_egg",
-            () -> new ForgeSpawnEggItem(NEURO_FLY, 0x34343B, 0xC76D32, new Item.Properties()));
+            () -> new SpawnEggItem(new Item.Properties()
+                    .setId(ResourceKey.create(Registries.ITEM, id("neuro_fly_spawn_egg")))
+                    .spawnEgg(NEURO_FLY.get())));
 
     private NeuroLabEntities() {}
 
@@ -48,7 +52,7 @@ public final class NeuroLabEntities {
         if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) event.accept(NEURO_FLY_SPAWN_EGG.get());
     }
 
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(NeuroLabMod.MOD_ID, path);
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(NeuroLabMod.MOD_ID, path);
     }
 }
