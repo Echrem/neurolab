@@ -41,7 +41,7 @@ public final class NeuroAnalysisScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, width, height, 0xB8000000);
+        g.fill(0, 0, width, height, 0xFF070B10);
         int panelW = Math.max(0, Math.min(1040, width - 32));
         int panelX = (width - panelW) / 2;
         int panelY = 14;
@@ -66,7 +66,7 @@ public final class NeuroAnalysisScreen extends Screen {
             g.drawCenteredString(font, "Neuro Fly attaches on spawn; use /neurolab attach for another mob.",
                     width / 2, height / 2 + 4, 0xFFD4E0E9);
             drawFooter(g, left, panelBottom - 23, contentW, "Esc  close    ·    Ctrl + N  reopen");
-            super.render(g, mouseX, mouseY, partialTick);
+            renderWidgets(g, mouseX, mouseY, partialTick);
             return;
         }
 
@@ -96,9 +96,11 @@ public final class NeuroAnalysisScreen extends Screen {
         int chartTop = mobY + 30;
         int chartBottom = panelBottom - 35;
         int gap = 8;
-        boolean leftPanel = contentW >= 760 && DashboardPreferences.showLeftPanel();
-        boolean rightPanel = contentW >= 760 && DashboardPreferences.showRightPanel();
-        int sideW = 150;
+        boolean showSensory = DashboardPreferences.showLeftPanel();
+        boolean showMotor = DashboardPreferences.showRightPanel();
+        int sideW = contentW >= 760 ? 150 : contentW >= 460 ? 90 : 0;
+        boolean leftPanel = sideW > 0 && showSensory;
+        boolean rightPanel = sideW > 0 && showMotor;
         int centerX = left + (leftPanel ? sideW + gap : 0);
         int centerW = contentW - (leftPanel ? sideW + gap : 0) - (rightPanel ? sideW + gap : 0);
         List<Metric> metrics = java.util.Arrays.stream(Metric.values())
@@ -162,7 +164,12 @@ public final class NeuroAnalysisScreen extends Screen {
                 ? "← / → select mob  ·  " + (selectedIndex + 1) + " of " + streams.size() + " tracked"
                 : "1 tracked mob";
         drawFooter(g, left, panelBottom - 23, contentW, nav + " · Space freeze/resume · Wheel scroll · Esc close");
-        super.render(g, mouseX, mouseY, partialTick);
+        renderWidgets(g, mouseX, mouseY, partialTick);
+    }
+
+    private void renderWidgets(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        for (net.minecraft.client.gui.components.Renderable renderable : renderables)
+            renderable.render(g, mouseX, mouseY, partialTick);
     }
 
     private List<TelemetryHistory.SeriesView> streams() {

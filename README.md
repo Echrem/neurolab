@@ -6,7 +6,7 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.4.0 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.0.jar` for the 1.21.1 profile.
+Version 0.4.1 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.1.jar` for the 1.21.1 profile.
 
 This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
@@ -127,6 +127,10 @@ The simulator injects events into annotated sensory populations rather than dire
 ## Reading the dashboard and logs
 
 Open the dashboard with **Ctrl+N**. Its side panels show three eye samples, looming, touch, odor, taste, neural motor output, and effective body commands. Up to sixteen plots cover those channels, spikes, active neurons, and real-time factor. **SETTINGS** toggles either side panel and each plot; these local preferences persist in `config/neurolab-dashboard.properties`. Use the left/right arrow keys to switch between tracked mobs. **FREEZE** or **Space** holds a snapshot of the plots for inspection; **RESUME** returns to live data. Only the display is frozen: the server, simulation, telemetry collection, and logs continue. Use the mouse wheel over the chart area to scroll through plots that do not fit vertically. Each chart retains up to 180 samples; x positions represent sample order, not wall-clock time, and the server sends observations every two game ticks. A mob's plot is removed after ten seconds without new telemetry.
+
+The analysis and settings screens use a solid backdrop so Minecraft's menu blur does not wash out their controls. On short displays, settings show the plot controls in two pages; use the `‹ 1/2` and `2/2 ›` buttons at the bottom.
+
+The dashboard controls render above an opaque background and keep side panels visible at smaller GUI scales. Mob movement commands now move the entity on the server with normal collision checks, so the control remains active while vanilla mob AI is paused.
 
 This panel visualizes decoded telemetry; it does not render the full connectome or per-neuron electrophysiology. Counts use a per-chart automatic range, while bounded control signals use their defined ranges; turn is plotted around a zero baseline so direction is visible. It is an inspection aid, not a calibrated measurement instrument. The server also appends observations to:
 

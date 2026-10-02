@@ -145,7 +145,8 @@ public final class BrainAttachmentService {
                 double lift = Math.max(0, body.lift() * 0.16 + (body.escape() ? 0.08 : 0));
                 vy = Math.max(-0.12, Math.min(0.16, velocity.y * 0.8 + lift));
             } else if (body.escape() && mob.onGround()) vy = Math.max(velocity.y, 0.42);
-            mob.setDeltaMovement(vx, vy, vz);
+            mob.setDeltaMovement(0, vy, 0);
+            mob.move(net.minecraft.world.entity.MoverType.SELF, new Vec3(vx, 0, vz));
             mob.hasImpulse = true;
         }
     }

@@ -8,6 +8,9 @@ import net.minecraft.network.chat.Component;
 /** Local, persistent controls for dashboard panels and visible plots. */
 public final class NeuroSettingsScreen extends Screen {
     private final Screen parent;
+    private int chartPage;
+    private Button previousPage;
+    private Button nextPage;
 
     public NeuroSettingsScreen(Screen parent) {
         super(Component.literal("NeuroLab Settings"));
@@ -16,29 +19,51 @@ public final class NeuroSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        int panelW = Math.min(720, width - 32);
+        boolean compact = height < 360;
+        int panelW = Math.min(720, Math.max(0, width - 32));
         int x = (width - panelW) / 2;
         int buttonW = (panelW - 12) / 2;
-        int top = Math.max(82, height / 2 - 116);
+        int top = compact ? 62 : Math.max(82, height / 2 - 116);
         addRenderableWidget(toggle("Left sensory panel", DashboardPreferences.showLeftPanel(),
                 x, top, buttonW, DashboardPreferences::toggleLeftPanel));
         addRenderableWidget(toggle("Right motor panel", DashboardPreferences.showRightPanel(),
                 x + buttonW + 12, top, buttonW, DashboardPreferences::toggleRightPanel));
 
-        int rowH = Math.min(23, Math.max(20, (height - top - 72) / 8));
-        int chartTop = top + 36;
-        for (int i = 0; i < DashboardPreferences.CHART_NAMES.length; i++) {
-            final int chartIndex = i;
-            int col = i / 8;
-            int row = i % 8;
+        int chartTop = top + (compact ? 28 : 36);
+        int rowCount = compact ? 4 : 8;
+        int visibleCount = compact ? 8 : DashboardPreferences.CHART_NAMES.length;
+        int rowH = compact ? 20 : Math.min(22, Math.max(18, (height - chartTop - 66) / rowCount));
+        int rowGap = compact ? 3 : 4;
+        for (int i = 0; i < visibleCount; i++) {
+            int chartIndex = compact ? chartPage * visibleCount + i : i;
+            int col = compact ? i % 2 : i / 8;
+            int row = compact ? i / 2 : i % 8;
             int bx = x + col * (buttonW + 12);
-            int by = chartTop + row * (rowH + 4);
-            String name = DashboardPreferences.CHART_NAMES[i];
-            addRenderableWidget(toggle(name, DashboardPreferences.showChart(i), bx, by, buttonW,
-                    () -> DashboardPreferences.toggleChart(chartIndex)));
+            int by = chartTop + row * (rowH + rowGap);
+            String name = DashboardPreferences.CHART_NAMES[chartIndex];
+            addRenderableWidget(toggle(name, DashboardPreferences.showChart(chartIndex), bx, by,
+                    buttonW, () -> DashboardPreferences.toggleChart(chartIndex)));
+        }
+        if (compact) {
+            int footerY = height - 28;
+            previousPage = addRenderableWidget(Button.builder(Component.literal("‹ PLOTS"), b -> changePage(-1))
+                    .bounds(width / 2 - 112, footerY, 70, 20).build());
+            nextPage = addRenderableWidget(Button.builder(Component.literal("PLOTS ›"), b -> changePage(1))
+                    .bounds(width / 2 + 42, footerY, 70, 20).build());
+            updatePageButtons();
         }
         addRenderableWidget(Button.builder(Component.literal("DONE"), b -> onClose())
-                .bounds(width / 2 - 55, height - 34, 110, 20).build());
+                .bounds(width / 2 - 35, height - 28, 70, 20).build());
+    }
+
+    private void changePage(int delta) {
+        chartPage = Math.floorMod(chartPage + delta, 2);
+        rebuildWidgets();
+    }
+
+    private void updatePageButtons() {
+        if (previousPage != null) previousPage.setMessage(Component.literal("‹ " + (chartPage == 0 ? "1/2" : "2/2")));
+        if (nextPage != null) nextPage.setMessage(Component.literal((chartPage == 0 ? "1/2" : "2/2") + " ›"));
     }
 
     private Button toggle(String name, boolean enabled, int x, int y, int w, Runnable action) {
@@ -58,8 +83,8 @@ public final class NeuroSettingsScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, width, height, 0xE9081118);
-        int panelW = Math.min(720, width - 32);
+        g.fill(0, 0, width, height, 0xFF070B10);
+        int panelW = Math.min(720, Math.max(0, width - 32));
         int x = (width - panelW) / 2;
         int y = 22;
         g.fill(x - 1, y - 1, x + panelW + 1, height - 22, 0xFF486174);
@@ -68,7 +93,8 @@ public final class NeuroSettingsScreen extends Screen {
         g.drawCenteredString(font, "NEUROLAB  /  DASHBOARD SETTINGS", width / 2, 38, 0xFFB9ECFF);
         g.drawCenteredString(font, "These preferences change the local analysis view, not the server simulation.",
                 width / 2, 56, 0xFFD6E0E8);
-        super.render(g, mouseX, mouseY, partialTick);
+        for (net.minecraft.client.gui.components.Renderable renderable : renderables)
+            renderable.render(g, mouseX, mouseY, partialTick);
     }
 
     @Override
