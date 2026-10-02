@@ -52,6 +52,7 @@ public final class TelemetryLog {
                 + ",\"leftEye\":" + p.leftEye() + ",\"rightEye\":" + p.rightEye()
                 + ",\"looming\":" + p.looming() + ",\"touch\":" + p.touch()
                 + ",\"odor\":" + p.odor() + ",\"taste\":" + p.taste()
+                + ",\"pain\":" + p.pain() + ",\"reward\":" + p.reward()
                 + ",\"bodyForward\":" + p.bodyForward() + ",\"bodyTurn\":" + p.bodyTurn()
                 + ",\"bodyLift\":" + p.bodyLift() + ",\"bodyEscape\":" + p.bodyEscape()
                 + ",\"reflex\":" + p.reflex() + ",\"testStimulus\":" + p.testStimulus() + "}";

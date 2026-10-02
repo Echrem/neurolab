@@ -14,8 +14,8 @@ import java.util.Locale;
 
 /** Selectable, multi-signal telemetry dashboard for attached mobs. */
 public final class NeuroAnalysisScreen extends Screen {
-    private static final int PANEL = 0xFF0B1118;
-    private static final int PANEL_INNER = 0xFF16232F;
+    private static final int PANEL = 0xD90B1118;
+    private static final int PANEL_INNER = 0xC216232F;
     private int selectedEntityId = -1;
     private List<TelemetryHistory.SeriesView> frozenStreams;
     private Button freezeButton;
@@ -30,22 +30,23 @@ public final class NeuroAnalysisScreen extends Screen {
 
     @Override
     protected void init() {
-        int panelW = Math.min(1040, width - 32);
+        int panelW = Math.max(0, Math.min(1040, width - 48));
         int panelX = (width - panelW) / 2;
+        int panelY = popupTop();
         freezeButton = addRenderableWidget(Button.builder(Component.literal(frozenStreams == null ? "FREEZE" : "RESUME"),
-                        b -> toggleFreeze()).bounds(panelX + panelW - 190, 22, 80, 18).build());
+                        b -> toggleFreeze()).bounds(panelX + panelW - 190, panelY + 8, 80, 18).build());
         addRenderableWidget(Button.builder(Component.literal("SETTINGS"), b ->
                         Minecraft.getInstance().setScreen(new NeuroSettingsScreen(this)))
-                .bounds(panelX + panelW - 102, 22, 84, 18).build());
+                .bounds(panelX + panelW - 102, panelY + 8, 84, 18).build());
     }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.fill(0, 0, width, height, 0xFF070B10);
-        int panelW = Math.max(0, Math.min(1040, width - 32));
+        g.fill(0, 0, width, height, 0x78070B10);
+        int panelW = Math.max(0, Math.min(1040, width - 48));
         int panelX = (width - panelW) / 2;
-        int panelY = 14;
-        int panelBottom = height - 14;
+        int panelY = popupTop();
+        int panelBottom = panelY + popupHeight();
         g.fill(panelX - 1, panelY - 1, panelX + panelW + 1, panelBottom + 1, 0xFF486174);
         g.fill(panelX, panelY, panelX + panelW, panelBottom, PANEL);
         g.fill(panelX, panelY, panelX + panelW, panelY + 2, 0xFF49BCE4);
@@ -115,6 +116,8 @@ public final class NeuroAnalysisScreen extends Screen {
                     {"TOUCH", percent(latest.touch())},
                     {"ODOR", percent(latest.odor())},
                     {"TASTE", percent(latest.taste())},
+                    {"PAIN", percent(latest.pain())},
+                    {"REWARD", percent(latest.reward())},
                     {"SOURCE", latest.testStimulus() ? "TEST PULSE" : "WORLD"}
             }, 0xFF79D6F2);
         }
@@ -167,6 +170,9 @@ public final class NeuroAnalysisScreen extends Screen {
         renderWidgets(g, mouseX, mouseY, partialTick);
     }
 
+    private int popupHeight() { return Math.max(1, Math.min(700, height - 32)); }
+    private int popupTop() { return Math.max(0, (height - popupHeight()) / 2); }
+
     private void renderWidgets(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         for (net.minecraft.client.gui.components.Renderable renderable : renderables)
             renderable.render(g, mouseX, mouseY, partialTick);
@@ -207,7 +213,9 @@ public final class NeuroAnalysisScreen extends Screen {
         int sensorX = x + 8;
         int brainX = sensorX + cardW + gap;
         int motorX = brainX + cardW + gap;
-        flowCard(g, sensorX, cardY, cardW, 38, "WORLD SENSES", "eyes · looming · touch · odor · taste", 0xFF65B8D5);
+        flowCard(g, sensorX, cardY, cardW, 38, "WORLD SENSES",
+                String.format(Locale.ROOT, "pain %.0f%% · reward %.0f%%", sample.pain() * 100, sample.reward() * 100),
+                0xFF65B8D5);
         flowCard(g, brainX, cardY, cardW, 38, "FLY CONNECTOME",
                 sample.active() + " active · " + sample.spikes() + " spikes", 0xFFAF8BE8);
         flowCard(g, motorX, cardY, cardW, 38, sample.mode().name(),

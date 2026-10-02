@@ -17,6 +17,7 @@ public final class DashboardPreferences {
     private static final boolean[] CHARTS = new boolean[CHART_NAMES.length];
     private static boolean leftPanel = true;
     private static boolean rightPanel = true;
+    private static boolean viewOverlay = true;
 
     static {
         java.util.Arrays.fill(CHARTS, true);
@@ -27,9 +28,11 @@ public final class DashboardPreferences {
 
     public static synchronized boolean showLeftPanel() { return leftPanel; }
     public static synchronized boolean showRightPanel() { return rightPanel; }
+    public static synchronized boolean showViewOverlay() { return viewOverlay; }
     public static synchronized boolean showChart(int index) { return CHARTS[index]; }
     public static synchronized void toggleLeftPanel() { leftPanel = !leftPanel; save(); }
     public static synchronized void toggleRightPanel() { rightPanel = !rightPanel; save(); }
+    public static synchronized void toggleViewOverlay() { viewOverlay = !viewOverlay; save(); }
     public static synchronized void toggleChart(int index) { CHARTS[index] = !CHARTS[index]; save(); }
 
     private static Path path() {
@@ -44,6 +47,7 @@ public final class DashboardPreferences {
             properties.load(in);
             leftPanel = Boolean.parseBoolean(properties.getProperty("panel.left", "true"));
             rightPanel = Boolean.parseBoolean(properties.getProperty("panel.right", "true"));
+            viewOverlay = Boolean.parseBoolean(properties.getProperty("view.overlay", "true"));
             for (int i = 0; i < CHARTS.length; i++)
                 CHARTS[i] = Boolean.parseBoolean(properties.getProperty("chart." + i, "true"));
         } catch (IOException ignored) {
@@ -55,6 +59,7 @@ public final class DashboardPreferences {
         Properties properties = new Properties();
         properties.setProperty("panel.left", Boolean.toString(leftPanel));
         properties.setProperty("panel.right", Boolean.toString(rightPanel));
+        properties.setProperty("view.overlay", Boolean.toString(viewOverlay));
         for (int i = 0; i < CHARTS.length; i++) properties.setProperty("chart." + i, Boolean.toString(CHARTS[i]));
         Path file = path();
         try {

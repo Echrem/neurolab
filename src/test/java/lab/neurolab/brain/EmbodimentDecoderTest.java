@@ -54,6 +54,36 @@ final class EmbodimentDecoderTest {
     }
 
     @Test
+    void assistedBrainTurnsTowardNearbyWorldTargets() {
+        var cue = new EmbodimentDecoder.WorldCue(1, 0.8, 5, 0, 0);
+        var command = EmbodimentDecoder.decode(SILENT, new FlyBrain.Drive(0, 0, 0, 0, 0),
+                100, 12, ControlMode.ASSISTED, cue);
+
+        assertTrue(command.turn() > 0.25);
+        assertTrue(command.forward() > 0.2);
+        assertTrue(command.reflex());
+    }
+
+    @Test
+    void assistedBrainSlowsAndSteersIntoClearanceAtObstacles() {
+        var cue = new EmbodimentDecoder.WorldCue(0, 0, 16, 1, -1);
+        var command = EmbodimentDecoder.decode(SILENT, new FlyBrain.Drive(0, 0, 0, 0, 0),
+                100, 12, ControlMode.ASSISTED, cue);
+
+        assertTrue(command.turn() < -0.5);
+        assertTrue(command.forward() < 0.06);
+        assertTrue(command.lift() > 0);
+    }
+
+    @Test
+    void neuralModeIgnoresHandBuiltWorldGuidance() {
+        var cue = new EmbodimentDecoder.WorldCue(-1, 1, 2, 1, 1);
+        var expected = new EmbodimentDecoder.Command(0, 0, 0, false, false);
+        assertEquals(expected, EmbodimentDecoder.decode(SILENT,
+                new FlyBrain.Drive(0, 0, 0, 0, 0), 100, 12, ControlMode.NEURAL, cue));
+    }
+
+    @Test
     void modesPreserveAnOriginallyDisabledAiWhenObserving() {
         assertFalse(ControlMode.OBSERVE.noAi(false));
         assertTrue(ControlMode.OBSERVE.noAi(true));

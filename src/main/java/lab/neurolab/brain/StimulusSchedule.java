@@ -30,7 +30,7 @@ public final class StimulusSchedule {
                 Math.max(natural.looming(), strength(Sense.LOOMING)),
                 Math.max(natural.tactile(), strength(Sense.TOUCH)),
                 Math.max(natural.odor(), strength(Sense.ODOR)),
-                Math.max(natural.taste(), strength(Sense.TASTE)));
+                Math.max(natural.taste(), strength(Sense.TASTE)), natural.pain(), natural.reward());
     }
 
     private float strength(Sense sense) {

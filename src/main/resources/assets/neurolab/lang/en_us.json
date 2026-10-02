@@ -3,5 +3,8 @@
   "key.neurolab.analysis": "Neural analysis dashboard (Ctrl + N)",
   "screen.neurolab.analysis": "NeuroLab Analysis",
   "entity.neurolab.neuro_fly": "Neuro Fly",
-  "item.neurolab.neuro_fly_spawn_egg": "Neuro Fly Spawn Egg"
+  "item.neurolab.neuro_fly_spawn_egg": "Neuro Fly Spawn Egg",
+  "item.neurolab.neuro_viewer": "Neuro Viewer",
+  "key.neurolab.view": "View targeted brain mob / return (V)",
+  "key.neurolab.view_hud": "Toggle Neuro View data panel (I)"
 }

@@ -47,7 +47,7 @@ final class BrainHologramRenderer {
     }
 
     private static String flowFrame(long events) {
-        String[] frames = {"o..>..*..>..o", "o.>. .*.>. .o", "o.. .>*<. ..o", "o. .<.*.<. .o"};
+        String[] frames = {"o..>..*..>..o", "o.>. .*.>. .o", "o...>*..>..o", "o.. .*.>. .o"};
         int phase = (int) ((System.nanoTime() / 140_000_000L + events) & 3);
         return frames[phase];
     }

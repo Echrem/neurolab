@@ -7,13 +7,18 @@ import java.util.SplittableRandom;
 /** Sparse event-driven leaky integrate-and-fire simulation over an immutable adult-fly connectome. */
 public final class FlyBrain {
     public record Drive(float light, float leftEye, float rightEye, float looming, float tactile, float odor,
-                        float taste) {
+                        float taste, float pain, float reward) {
+        public Drive(float light, float leftEye, float rightEye, float looming, float tactile, float odor,
+                     float taste) {
+            this(light, leftEye, rightEye, looming, tactile, odor, taste, 0, 0);
+        }
         public Drive(float light, float looming, float tactile, float odor, float taste) {
             this(light, light, light, looming, tactile, odor, taste);
         }
         public Drive {
             light = clamp(light); leftEye = clamp(leftEye); rightEye = clamp(rightEye);
             looming = clamp(looming); tactile = clamp(tactile); odor = clamp(odor); taste = clamp(taste);
+            pain = clamp(pain); reward = clamp(reward);
         }
         private static float clamp(float v) { return Float.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; }
     }
@@ -29,6 +34,7 @@ public final class FlyBrain {
     private static final double REST_MV = -52, THRESHOLD_MV = -45, RESET_MV = -52;
     private static final double SYNAPSE_SCALE_MV = 0.0008;
     private final ConnectomeData graph;
+    private final SynapticPlasticity plasticity;
     private final double[] voltage, current;
     private final byte[] refractory;
     private final boolean[] queued;
@@ -42,7 +48,12 @@ public final class FlyBrain {
     private long tick;
 
     public FlyBrain(ConnectomeData graph) {
+        this(graph, new long[0]);
+    }
+
+    public FlyBrain(ConnectomeData graph, long[] learnedSynapses) {
         this.graph = graph;
+        plasticity = new SynapticPlasticity(learnedSynapses, graph.connections());
         int n = graph.neurons();
         voltage = new double[n]; current = new double[n]; refractory = new byte[n]; queued = new boolean[n];
         active = new int[Math.max(256, n / 32)]; next = new int[active.length];
@@ -58,6 +69,8 @@ public final class FlyBrain {
     }
 
     public Snapshot latest() { return latest; }
+    public long[] learnedSynapses() { return plasticity.snapshot(); }
+    public int learningRevision() { return plasticity.revision(); }
 
     /** Advance 50 ms of neural time. The call is intended for a dedicated worker thread, never the Minecraft tick. */
     public Snapshot advance(Drive drive) {
@@ -73,8 +86,8 @@ public final class FlyBrain {
                 nextCount = inject(sensory, drive.light * 70 + drive.looming * 90, next, nextCount);
             }
             nextCount = inject(olfactory, drive.odor * 80, next, nextCount);
-            nextCount = inject(gustatory, drive.taste * 100, next, nextCount);
-            nextCount = inject(tactile, drive.tactile * 80, next, nextCount);
+            nextCount = inject(gustatory, drive.taste * 100 + drive.reward * 200, next, nextCount);
+            nextCount = inject(tactile, drive.tactile * 80 + drive.pain * 200, next, nextCount);
             for (int k = 0; k < activeCount; k++) {
                 int id = active[k];
                 queued[id] = false;
@@ -93,9 +106,11 @@ public final class FlyBrain {
                     if (type.startsWith("DN") || type.startsWith("MN") || type.startsWith("BDN")) counts.merge(type, 1, Integer::sum);
                     for (int edge = graph.rowOffsets[id]; edge < graph.rowOffsets[id + 1]; edge++) {
                         int to = graph.targets[edge];
-                        double weight = Short.toUnsignedInt(graph.connectionWeights[edge]) * SYNAPSE_SCALE_MV;
+                        double weight = Short.toUnsignedInt(graph.connectionWeights[edge])
+                                * plasticity.weightScale(edge) * SYNAPSE_SCALE_MV;
                         current[to] += weight * (signs[id] < 0 ? -1 : 1);
                         nextCount = enqueue(to, next, nextCount);
+                        if (drive.reward > 0 || drive.pain > 0) plasticity.record(edge, tick + 1);
                     }
                     synapticEvents += graph.rowOffsets[id + 1] - graph.rowOffsets[id];
                 } else {
@@ -120,6 +135,7 @@ public final class FlyBrain {
         boolean escape = counts.entrySet().stream().anyMatch(e -> e.getKey().startsWith("DNp01") && e.getValue() > 0);
         Map<String, Double> rates = Map.of("DNp09/BDN-forward", driveForward, "DNa02-turn", turn, "DNg02-lift", liftDrive,
                 "DNp01-escape", escape ? 1.0 : 0.0);
+        plasticity.applyFeedback(drive.reward, drive.pain, tick + 1);
         latest = new Snapshot(++tick, spikes, synapticEvents, activeCount, driveForward, turn, liftDrive, escape, rates);
         return latest;
     }

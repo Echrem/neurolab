@@ -51,4 +51,17 @@ final class ConnectomeDataTest {
         assertTrue(left.spikes() > 0);
         assertTrue(right.spikes() > 0);
     }
+
+    @Test void painAndRewardDriveTheirAnnotatedSensoryPopulations() throws Exception {
+        ConnectomeData graph = ConnectomeData.readBundled();
+        FlyBrain painBrain = new FlyBrain(graph);
+        FlyBrain rewardBrain = new FlyBrain(graph);
+        var pain = painBrain.advance(new FlyBrain.Drive(0, 0, 0, 0, 0, 0, 0, 1, 0));
+        var reward = rewardBrain.advance(new FlyBrain.Drive(0, 0, 0, 0, 0, 0, 0, 0, 1));
+
+        assertTrue(pain.spikes() > 0);
+        assertTrue(pain.synapticEvents() > 0);
+        assertTrue(reward.spikes() > 0);
+        assertTrue(reward.synapticEvents() > 0);
+    }
 }

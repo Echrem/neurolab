@@ -31,6 +31,8 @@ public final class NeuroLabEntities {
 
     public static final RegistryObject<Item> NEURO_FLY_SPAWN_EGG = ITEMS.register("neuro_fly_spawn_egg",
             () -> new ForgeSpawnEggItem(NEURO_FLY, 0x34343B, 0xC76D32, new Item.Properties()));
+    public static final RegistryObject<Item> NEURO_VIEWER = ITEMS.register("neuro_viewer",
+            () -> new NeuroViewerItem(new Item.Properties().stacksTo(1)));
 
     private NeuroLabEntities() {}
 
@@ -46,6 +48,7 @@ public final class NeuroLabEntities {
     @SubscribeEvent
     public static void addToCreativeTab(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) event.accept(NEURO_FLY_SPAWN_EGG.get());
+        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) event.accept(NEURO_VIEWER.get());
     }
 
     private static ResourceLocation id(String path) {

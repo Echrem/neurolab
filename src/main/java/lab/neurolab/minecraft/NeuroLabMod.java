@@ -216,7 +216,8 @@ public final class NeuroLabMod {
                 snapshot.activeNeurons(), (float) snapshot.forward(), (float) snapshot.turn(),
                 (float) snapshot.lift(), (float) BrainAttachmentService.realTimeFactor(mob), snapshot.escape(),
                 senses.light(), senses.leftEye(), senses.rightEye(), senses.looming(), senses.tactile(),
-                senses.odor(), senses.taste(), (float) body.forward(), (float) body.turn(),
+                senses.odor(), senses.taste(), senses.pain(), senses.reward(),
+                (float) body.forward(), (float) body.turn(),
                 (float) body.lift(), body.escape(), body.reflex(), testStimulus, mode);
         TelemetryLog.record(packet, mob.getUUID(), mob.level().dimension().location().toString(), mob.level().getGameTime(), trial);
         TelemetryNetwork.CHANNEL.send(packet, PacketDistributor.TRACKING_ENTITY.with(mob));

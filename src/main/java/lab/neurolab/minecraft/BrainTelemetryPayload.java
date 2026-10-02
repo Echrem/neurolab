@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 public record BrainTelemetryPayload(int entityId, int spikes, long synapticEvents, int active, float forward, float turn, float lift,
                                     float realTimeFactor, boolean escape, float light, float leftEye,
                                     float rightEye, float looming, float touch, float odor, float taste,
+                                    float pain, float reward,
                                     float bodyForward, float bodyTurn, float bodyLift, boolean bodyEscape,
                                     boolean reflex, boolean testStimulus, ControlMode mode)
         implements CustomPacketPayload {
@@ -20,7 +21,7 @@ public record BrainTelemetryPayload(int entityId, int spikes, long synapticEvent
     public BrainTelemetryPayload(int entityId, int spikes, int active, float forward, float turn, float lift,
                                  float realTimeFactor, boolean escape) {
         this(entityId, spikes, 0, active, forward, turn, lift, realTimeFactor, escape,
-                0, 0, 0, 0, 0, 0, 0, forward, turn, lift, escape, false, false, ControlMode.ASSISTED);
+                0, 0, 0, 0, 0, 0, 0, 0, 0, forward, turn, lift, escape, false, false, ControlMode.ASSISTED);
     }
 
     private static BrainTelemetryPayload decode(RegistryFriendlyByteBuf b) {
@@ -40,6 +41,8 @@ public record BrainTelemetryPayload(int entityId, int spikes, long synapticEvent
         float touch = b.readFloat();
         float odor = b.readFloat();
         float taste = b.readFloat();
+        float pain = b.readFloat();
+        float reward = b.readFloat();
         float bodyForward = b.readFloat();
         float bodyTurn = b.readFloat();
         float bodyLift = b.readFloat();
@@ -47,7 +50,7 @@ public record BrainTelemetryPayload(int entityId, int spikes, long synapticEvent
         boolean reflex = b.readBoolean();
         boolean testStimulus = b.readBoolean();
         return new BrainTelemetryPayload(entityId, spikes, synapticEvents, active, forward, turn, lift, realTimeFactor, escape,
-                light, leftEye, rightEye, looming, touch, odor, taste, bodyForward, bodyTurn, bodyLift,
+                light, leftEye, rightEye, looming, touch, odor, taste, pain, reward, bodyForward, bodyTurn, bodyLift,
                 bodyEscape, reflex, testStimulus, b.readEnum(ControlMode.class));
     }
 
@@ -56,6 +59,7 @@ public record BrainTelemetryPayload(int entityId, int spikes, long synapticEvent
         b.writeFloat(p.forward); b.writeFloat(p.turn); b.writeFloat(p.lift); b.writeFloat(p.realTimeFactor); b.writeBoolean(p.escape);
         b.writeFloat(p.light); b.writeFloat(p.leftEye); b.writeFloat(p.rightEye); b.writeFloat(p.looming);
         b.writeFloat(p.touch); b.writeFloat(p.odor); b.writeFloat(p.taste);
+        b.writeFloat(p.pain); b.writeFloat(p.reward);
         b.writeFloat(p.bodyForward); b.writeFloat(p.bodyTurn); b.writeFloat(p.bodyLift);
         b.writeBoolean(p.bodyEscape); b.writeBoolean(p.reflex); b.writeBoolean(p.testStimulus); b.writeEnum(p.mode);
     }

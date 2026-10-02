@@ -6,7 +6,7 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.4.2 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.2.jar` for the 1.21.1 profile.
+Version 0.4.3 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.3.jar` for the 1.21.1 profile.
 
 This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
@@ -18,6 +18,7 @@ This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Fo
 - Timed sensory test pulses for controlled input/output checks.
 - A client-side engineering dashboard with configurable side panels and sixteen per-mob time-series plots.
 - An above-mob brain hologram for attached mobs, showing the live count of connectome edges activated by spikes in each 50 ms neural step.
+- A Neuro Viewer item and V shortcut that move the camera into an attached mob's view, with a configurable in-world telemetry panel.
 - Asynchronous JSONL telemetry written to the current world's `neurolab/events.jsonl` file.
 
 The implementation is intentionally small enough to inspect. There is no separate launcher or account service, and the mod does not require Fabric API.
@@ -63,7 +64,8 @@ For a dedicated server, install the mod on the server and on each client joining
    ```
 
 6. Open the dashboard with **Ctrl+N** and use **SETTINGS** to choose side panels and plots. The `N` key can be changed in Minecraft's Controls screen; Ctrl is the required modifier.
-7. When finished, detach a selected mob to restore its previous AI state:
+7. Aim at a brain-attached mob and press **V** to view through its camera; press **V** again to return. The **Neuro Viewer** item in Tools & Utilities does the same with right-click; use it on air to exit. Press **I** to show or hide the small in-view data panel. The V and I bindings can be changed in Minecraft Controls; the panel preference is saved in `config/neurolab-dashboard.properties`.
+8. When finished, detach a selected mob to restore its previous AI state:
 
    ```mcfunction
    /neurolab detach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
@@ -118,12 +120,14 @@ The current world-to-network and network-to-mob mappings are deliberately simple
 | Game observation | Current input proxy |
 | --- | --- |
 | Vision | Brightness sampled along left, center, and right forward rays and sent to side-annotated retinal neurons; timed pulses can target either eye |
-| Looming | Nearby entities moving toward the mob; also available as a timed test pulse |
-| Odor | Nearby dropped item entities; also available as a timed test pulse |
+| Looming | Nearby entities approaching the mob, with a weaker cue for stationary nearby entities; also available as a timed test pulse |
+| Odor | Nearby dropped item entities, with intensity increasing as they get closer; also available as a timed test pulse |
 | Taste | Contact with a small set of food-related blocks; also available as a timed test pulse |
 | Touch | Collision or recent damage; also available as a timed test pulse |
+| Pain | Damage, fire/lava, harmful blocks, dangerous falls, and close threats; injected into mechanosensory neurons |
+| Reward | Health recovery and progress toward nearby dropped items; drives gustatory activity and bounded reward-modulated plasticity |
 
-The simulator injects events into annotated sensory populations rather than directly stimulating motor neurons. Activity in selected descending-neuron labels is summarized into neural forward, turn, lift, and escape channels. Since those channels can remain silent in this prototype, a separately labeled, hand-built embodiment fallback supplies slow exploration and collision/looming response while the neural channels are quiet. The dashboard and JSONL log keep neural output separate from body commands and mark when the fallback is active. This fallback is game-control scaffolding, not connectome-derived behavior. The Neuro Fly can use lift; for other mobs, movement is constrained by the capabilities of that entity and normal Minecraft physics.
+The simulator injects events into annotated sensory populations rather than directly stimulating motor neurons. Activity in selected descending-neuron labels is summarized into neural forward, turn, lift, and escape channels. In `assisted` mode, the hand-built world adapter steers toward nearby players and dropped items, slows near a target, and checks forward block rays to turn toward open space. It uses each mob's own movement or flying speed attribute as its cap, preserves its normal flight capability, and never adds flight to ground-only mobs. Neuro Fly holds a modest height above nearby terrain while assisted. Pain and reward also gate small, bounded adjustments on recently active directed connectome edges; up to 8,192 sparse learned edge adjustments are saved with the mob and restored when it is attached again. This is an exploratory learning rule, not a fitted biological model. The dashboard and JSONL log keep neural output separate from the body adapter. `neural` mode uses only decoded neural commands and `observe` never moves the mob.
 
 ## Reading the dashboard and logs
 
@@ -131,7 +135,7 @@ Open the dashboard with **Ctrl+N**. Its side panels show three eye samples, loom
 
 The analysis and settings screens use a solid backdrop so Minecraft's menu blur does not wash out their controls. On short displays, settings show the plot controls in two pages; use the `‹ 1/2` and `2/2 ›` buttons at the bottom.
 
-The dashboard controls render above an opaque background and keep side panels visible at smaller GUI scales. Mob movement commands now move the entity on the server with normal collision checks, so the control remains active while vanilla mob AI is paused.
+The Ctrl+N dashboard opens as a centered translucent popup over a dimmed, unblurred game view. Mob movement commands use server collision checks while vanilla mob AI is paused. When viewing through a mob, the optional HUD shows spikes, outgoing synapse events per neural step, pain, reward, and body commands; **I** toggles it.
 
 This panel visualizes decoded telemetry; it does not render the full connectome or per-neuron electrophysiology. Counts use a per-chart automatic range, while bounded control signals use their defined ranges; turn is plotted around a zero baseline so direction is visible. The above-mob hologram is a compact activity schematic; its synapse count is the actual number of graph edges traversed by spiking neurons in the latest neural step, not a display of individual anatomical synapse locations. It is an inspection aid, not a calibrated measurement instrument. The server also appends observations to:
 
@@ -139,7 +143,7 @@ This panel visualizes decoded telemetry; it does not render the full connectome 
 <world>/neurolab/events.jsonl
 ```
 
-Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. When a trial is active, observations also include its `trialLabel` and tick offset; `trial_start` and `trial_end` records make boundaries explicit, including automatic expiry and entity unload. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; the telemetry uses protocol 4.
+Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. When a trial is active, observations also include its `trialLabel` and tick offset; `trial_start` and `trial_end` records make boundaries explicit, including automatic expiry and entity unload. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; telemetry uses protocol 5.
 
 The JSONL log is intended for offline inspection and analysis. Avoid sharing it without checking it for world or server details you do not want to publish.
 

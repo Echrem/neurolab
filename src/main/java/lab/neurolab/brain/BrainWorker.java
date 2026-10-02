@@ -19,7 +19,11 @@ public final class BrainWorker implements AutoCloseable {
     private long nextDueNanos;
 
     public BrainWorker(ConnectomeData data) {
-        brain = new FlyBrain(data);
+        this(data, new long[0]);
+    }
+
+    public BrainWorker(ConnectomeData data, long[] learnedSynapses) {
+        brain = new FlyBrain(data, learnedSynapses);
         nextDueNanos = System.nanoTime();
         task = EXECUTOR.scheduleAtFixedRate(this::run, 0, 50, TimeUnit.MILLISECONDS);
     }
@@ -28,6 +32,8 @@ public final class BrainWorker implements AutoCloseable {
     public FlyBrain.Snapshot snapshot() { return brain.latest(); }
     public Throwable failure() { return failure; }
     public double realTimeFactor() { return realTimeFactor; }
+    public long[] learnedSynapses() { return brain.learnedSynapses(); }
+    public int learningRevision() { return brain.learningRevision(); }
 
     private void run() {
         if (running.get()) {
