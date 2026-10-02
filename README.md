@@ -6,7 +6,11 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.4.5 targets **Minecraft 1.21.1 / Forge 52.1.16** and adds a physical telemetry monitor and reusable learned-synapse imprinter. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.5.jar` for the 1.21.1 profile.
+Version 0.4.6 targets **Minecraft 1.21.1 / Forge 52.1.16** and adds tuned fly-environment behavior to the monitor and learned-synapse imprinter. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.6.jar` for the 1.21.1 profile.
+
+Neuro Fly world-response settings are server-side Forge common configuration in `config/neurolab-common.toml` (also available from the Forge Mods configuration screen): balanced/light/shade phototaxis, steering strength, cruise throttle, flower and host search radii, animal/villager perching, perch duration, and rain-shelter scan/response. The Ctrl+N dashboard SETTINGS button controls local panels and plots; it points to the separate server behavior settings.
+
+Neuro Fly treats Minecraft brightness as a left/right visual gradient, slows continuously on approach, avoids exposed rain, seeks flowers, and may periodically perch on passive livestock or villagers when conditions are calm. Close static passive mobs do not create a threat response; fast-closing bodies and hostile mobs do. These are configurable, connectome-guided game behaviors with hand-built world/body layers, not a claim that Drosophila normally land on Minecraft-like livestock.
 
 This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 

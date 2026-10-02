@@ -23,7 +23,7 @@ public final class NeuroSettingsScreen extends Screen {
         int panelW = Math.min(720, Math.max(0, width - 32));
         int x = (width - panelW) / 2;
         int buttonW = (panelW - 12) / 2;
-        int top = compact ? 62 : Math.max(82, height / 2 - 116);
+        int top = compact ? 86 : Math.max(82, height / 2 - 116);
         addRenderableWidget(toggle("Left sensory panel", DashboardPreferences.showLeftPanel(),
                 x, top, buttonW, DashboardPreferences::toggleLeftPanel));
         addRenderableWidget(toggle("Right motor panel", DashboardPreferences.showRightPanel(),
@@ -90,9 +90,11 @@ public final class NeuroSettingsScreen extends Screen {
         g.fill(x - 1, y - 1, x + panelW + 1, height - 22, 0xFF486174);
         g.fill(x, y, x + panelW, height - 23, 0xFF0B1118);
         g.fill(x, y, x + panelW, y + 2, 0xFF49BCE4);
-        g.drawCenteredString(font, "NEUROLAB  /  DASHBOARD SETTINGS", width / 2, 38, 0xFFB9ECFF);
-        g.drawCenteredString(font, "These preferences change the local analysis view, not the server simulation.",
+        g.drawCenteredString(font, "NEUROLAB  /  DASHBOARD SETTINGS", width / 2, 34, 0xFFB9ECFF);
+        g.drawCenteredString(font, "Plots and panels below affect this view. Flight and light behavior are server settings:",
                 width / 2, 56, 0xFFD6E0E8);
+        g.drawCenteredString(font, "Mods  >  NeuroLab  >  Config  ·  light mode, cruise, flowers, host perching, rain shelter",
+                width / 2, 68, 0xFF8ACDE4);
         for (net.minecraft.client.gui.components.Renderable renderable : renderables)
             renderable.render(g, mouseX, mouseY, partialTick);
     }

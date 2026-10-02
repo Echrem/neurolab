@@ -23,6 +23,7 @@ import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraftforge.network.Channel;
 import net.minecraftforge.network.ChannelBuilder;
@@ -38,6 +39,8 @@ public final class NeuroLabMod {
         NeuroLabEntities.ITEMS.register(modBus);
         NeuroLabEntities.BLOCKS.register(modBus);
         NeuroLabEntities.BLOCK_ENTITY_TYPES.register(modBus);
+        context.registerConfig(ModConfig.Type.COMMON, NeuroFlyConfig.SPEC,
+                "neurolab-common.toml");
         TelemetryNetwork.initialize();
     }
 

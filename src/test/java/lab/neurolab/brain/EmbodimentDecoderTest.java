@@ -89,6 +89,26 @@ final class EmbodimentDecoderTest {
     }
 
     @Test
+    void bilateralLightCueCanSteerWhileTheNeuralBrainIsQuiet() {
+        var lightCue = new EmbodimentDecoder.WorldCue(0, 0, 16, 0, 0, 0, 0, -0.8, 0.7);
+        var command = EmbodimentDecoder.decode(SILENT, new FlyBrain.Drive(0, 0, 0, 0, 0),
+                0, 0, ControlMode.ASSISTED, lightCue);
+        assertTrue(command.turn() < -0.2);
+        assertTrue(command.reflex());
+    }
+
+    @Test
+    void assistedLightGuidanceIsLabeledWhenItAdjustsNeuralMotion() {
+        var neural = new FlyBrain.Snapshot(2, 5, 3, 0.3, 0, 0, false, Map.of());
+        var lightCue = new EmbodimentDecoder.WorldCue(0, 0, 16, 0, 0, 0, 0, 0.8, 0.7);
+        var command = EmbodimentDecoder.decode(neural, new FlyBrain.Drive(0, 0, 0, 0, 0),
+                0, 0, ControlMode.ASSISTED, lightCue);
+        assertTrue(command.forward() > 0);
+        assertTrue(command.turn() > 0.2);
+        assertTrue(command.reflex());
+    }
+
+    @Test
     void neuralModeIgnoresHandBuiltWorldGuidance() {
         var cue = new EmbodimentDecoder.WorldCue(-1, 1, 2, 1, 1);
         var expected = new EmbodimentDecoder.Command(0, 0, 0, false, false);

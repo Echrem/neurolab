@@ -5,11 +5,17 @@ public final class EmbodimentDecoder {
     public record Command(double forward, double turn, double lift, boolean escape, boolean reflex) {}
     /** Hand-built world-to-body guidance, kept separate from connectome motor output. */
     public record WorldCue(double targetTurn, double targetStrength, double targetDistance,
-                           double obstacle, double avoidanceTurn, double threatTurn, double threatStrength) {
-        public static final WorldCue NONE = new WorldCue(0, 0, 16, 0, 0, 0, 0);
+                           double obstacle, double avoidanceTurn, double threatTurn, double threatStrength,
+                           double lightTurn, double lightStrength) {
+        public static final WorldCue NONE = new WorldCue(0, 0, 16, 0, 0, 0, 0, 0, 0);
+        public WorldCue(double targetTurn, double targetStrength, double targetDistance,
+                        double obstacle, double avoidanceTurn, double threatTurn, double threatStrength) {
+            this(targetTurn, targetStrength, targetDistance, obstacle, avoidanceTurn,
+                    threatTurn, threatStrength, 0, 0);
+        }
         public WorldCue(double targetTurn, double targetStrength, double targetDistance,
                         double obstacle, double avoidanceTurn) {
-            this(targetTurn, targetStrength, targetDistance, obstacle, avoidanceTurn, 0, 0);
+            this(targetTurn, targetStrength, targetDistance, obstacle, avoidanceTurn, 0, 0, 0, 0);
         }
         public WorldCue {
             targetTurn = clamp(targetTurn, -1, 1);
@@ -19,6 +25,8 @@ public final class EmbodimentDecoder {
             avoidanceTurn = clamp(avoidanceTurn, -1, 1);
             threatTurn = clamp(threatTurn, -1, 1);
             threatStrength = clamp(threatStrength, 0, 1);
+            lightTurn = clamp(lightTurn, -1, 1);
+            lightStrength = clamp(lightStrength, 0, 1);
         }
         private static double clamp(double value, double min, double max) {
             return Double.isFinite(value) ? Math.max(min, Math.min(max, value)) : 0;
@@ -66,19 +74,19 @@ public final class EmbodimentDecoder {
     private static Command applyWorldCue(Command base, WorldCue world) {
         double target = world.targetTurn() * world.targetStrength();
         double turn = clamp(base.turn() + target * 0.55 + world.avoidanceTurn() * world.obstacle() * 0.85
-                        + world.threatTurn() * world.threatStrength() * 0.45,
+                        + world.threatTurn() * world.threatStrength() * 0.45
+                        + world.lightTurn() * world.lightStrength() * 0.38,
                 -1, 1);
         double forward = base.forward();
         if (world.targetStrength() > 0.05) {
-            double approachSpeed = (0.12 + world.targetStrength() * 0.36)
-                    * Math.min(1, Math.max(0, (world.targetDistance() - 1.0) / 2.5));
-            forward = Math.max(base.forward() * 0.65, approachSpeed);
-            if (world.targetDistance() < 1.1) forward = Math.min(forward, 0.04);
+            forward = FlyNavigation.approachThrottle(base.forward(), world.targetDistance(),
+                    world.targetStrength());
         }
         forward *= 1 - world.obstacle() * (base.escape() ? 0.30 : 0.96);
         if (base.escape()) forward = Math.max(forward, 0.8);
         double lift = Math.max(base.lift(), world.obstacle() > 0.78 ? 0.42 : 0);
-        boolean guided = world.targetStrength() > 0.05 || world.obstacle() > 0.08;
+        boolean guided = world.targetStrength() > 0.05 || world.obstacle() > 0.08
+                || (world.lightStrength() > 0.05 && Math.abs(world.lightTurn()) > 0.05);
         return new Command(forward, turn, lift, base.escape(), base.reflex() || guided);
     }
 

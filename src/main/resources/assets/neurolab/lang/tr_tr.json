@@ -38,5 +38,7 @@
   "screen.neurolab.guide.q9": "Öğrenilmiş sinapsları başka bir moba kopyalayabilir miyim?",
   "screen.neurolab.guide.a9": "Neuro Zihin Kopyalayıcıyı beyin takılı kaynak moba, ardından hedef moba kullan. Hedef aynı bağlantı grafiğiyle birlikte seyrek öğrenilmiş sinaps ayarlarını alır; anlık nöron etkinliği kopyalanmaz.",
   "screen.neurolab.guide.q10": "Neuro Monitör bloğu ne gösterir?",
-  "screen.neurolab.guide.a10": "Beyin takılı bir mobun 32 blok yakınına yerleştir. 3B ekran en yakındaki canlı telemetriyi izleyerek spike, yönlü sinaps aktarımı, acı, ödül ve beden çıktısını gösterir."
+  "screen.neurolab.guide.a10": "Beyin takılı bir mobun 32 blok yakınına yerleştir. 3B ekran en yakındaki canlı telemetriyi izleyerek spike, yönlü sinaps aktarımı, acı, ödül ve beden çıktısını gösterir.",
+  "screen.neurolab.guide.q11": "Işık ve sinek davranışı ayarlarını nereden değiştiririm?",
+  "screen.neurolab.guide.a11": "Mods menüsünde NeuroLab yapılandırmasını aç. Dengeli ışık tepkisi, ışığa/gölgeye yönelme, uçuş hızı tabanı, çiçek arama yarıçapı, hayvan/köylü üzerine konma ve yağmurda sığınak arama ayarları sunucu tarafında uygulanır."
 }

@@ -38,5 +38,7 @@
   "screen.neurolab.guide.q9": "Can I copy learned connections to another mob?",
   "screen.neurolab.guide.a9": "Use the Neuro Mind Imprinter on an attached mob to capture its sparse learned-synapse changes, then use it on another mob. The target gets the same bundled connectome plus that learned imprint; moment-to-moment neuron activity is not copied.",
   "screen.neurolab.guide.q10": "What does the Neuro Monitor block show?",
-  "screen.neurolab.guide.a10": "Place it within 32 blocks of a brain-attached mob. Its 3D display follows the nearest live telemetry feed and shows spikes, directed synapse deliveries, pain, reward, and body output."
+  "screen.neurolab.guide.a10": "Place it within 32 blocks of a brain-attached mob. Its 3D display follows the nearest live telemetry feed and shows spikes, directed synapse deliveries, pain, reward, and body output.",
+  "screen.neurolab.guide.q11": "Where can I tune light and fly behavior?",
+  "screen.neurolab.guide.a11": "Open NeuroLab configuration from the Mods menu. Server-side settings include balanced/light/shade response, cruise throttle, flower-search radius, animal/villager perching, and rain shelter seeking."
 }
