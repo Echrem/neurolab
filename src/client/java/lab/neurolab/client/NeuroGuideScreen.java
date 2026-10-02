@@ -18,7 +18,9 @@ public final class NeuroGuideScreen extends Screen {
             new Entry("screen.neurolab.guide.q5", "screen.neurolab.guide.a5"),
             new Entry("screen.neurolab.guide.q6", "screen.neurolab.guide.a6"),
             new Entry("screen.neurolab.guide.q7", "screen.neurolab.guide.a7"),
-            new Entry("screen.neurolab.guide.q8", "screen.neurolab.guide.a8")
+            new Entry("screen.neurolab.guide.q8", "screen.neurolab.guide.a8"),
+            new Entry("screen.neurolab.guide.q9", "screen.neurolab.guide.a9"),
+            new Entry("screen.neurolab.guide.q10", "screen.neurolab.guide.a10")
     );
 
     private final Screen parent;

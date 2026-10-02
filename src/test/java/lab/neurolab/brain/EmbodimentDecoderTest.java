@@ -30,11 +30,24 @@ final class EmbodimentDecoderTest {
     @Test
     void activeNeuralMotorOutputTakesPriorityOverFallback() {
         var neural = new FlyBrain.Snapshot(2, 5, 3, 0.25, -0.5, 0.1, false, Map.of());
-        var command = EmbodimentDecoder.decode(neural, new FlyBrain.Drive(0, 1, 1, 1, 1), 100, 12);
+        var command = EmbodimentDecoder.decode(neural, new FlyBrain.Drive(0, 0, 0, 0, 0), 100, 12);
 
         assertFalse(command.reflex());
         assertEquals(0.25, command.forward());
         assertEquals(-0.5, command.turn());
+    }
+
+    @Test
+    void assistedThreatForcesFastDirectionalEscapeEvenWithOtherNeuralOutput() {
+        var neural = new FlyBrain.Snapshot(2, 5, 3, 0.1, 0, 0.2, false, Map.of());
+        var world = new EmbodimentDecoder.WorldCue(0, 0, 16, 0, 0, -1, 0.9);
+        var command = EmbodimentDecoder.decode(neural, new FlyBrain.Drive(0, 0, 0.7f, 0, 0),
+                100, 12, ControlMode.ASSISTED, world);
+
+        assertTrue(command.escape());
+        assertTrue(command.forward() >= 0.8);
+        assertTrue(command.turn() < -0.8);
+        assertTrue(command.lift() > 0.8);
     }
 
     @Test
@@ -57,7 +70,7 @@ final class EmbodimentDecoderTest {
     void assistedBrainTurnsTowardNearbyWorldTargets() {
         var cue = new EmbodimentDecoder.WorldCue(1, 0.8, 5, 0, 0);
         var command = EmbodimentDecoder.decode(SILENT, new FlyBrain.Drive(0, 0, 0, 0, 0),
-                100, 12, ControlMode.ASSISTED, cue);
+                0, 12, ControlMode.ASSISTED, cue);
 
         assertTrue(command.turn() > 0.25);
         assertTrue(command.forward() > 0.2);

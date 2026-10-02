@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "neurolab:block/neuro_monitor" },
+    "facing=east": { "model": "neurolab:block/neuro_monitor", "y": 90 },
+    "facing=south": { "model": "neurolab:block/neuro_monitor", "y": 180 },
+    "facing=west": { "model": "neurolab:block/neuro_monitor", "y": 270 }
+  }
+}

@@ -64,4 +64,15 @@ final class ConnectomeDataTest {
         assertTrue(reward.spikes() > 0);
         assertTrue(reward.synapticEvents() > 0);
     }
+
+    @Test void copiedMindImprintIsAppliedBeforeTheNextNeuralStep() throws Exception {
+        ConnectomeData graph = ConnectomeData.readBundled();
+        long[] imprint = { (42L << 32) | (Float.floatToIntBits(0.2f) & 0xffffffffL) };
+        FlyBrain brain = new FlyBrain(graph);
+        brain.copyLearnedSynapses(imprint);
+
+        brain.advance(new FlyBrain.Drive(0, 0, 0, 0, 0));
+
+        assertArrayEquals(imprint, brain.learnedSynapses());
+    }
 }

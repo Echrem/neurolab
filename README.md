@@ -6,7 +6,7 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.4.4 targets **Minecraft 1.21.1 / Forge 52.1.16** and adds an in-game Q&A guide. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.4.jar` for the 1.21.1 profile.
+Version 0.4.5 targets **Minecraft 1.21.1 / Forge 52.1.16** and adds a physical telemetry monitor and reusable learned-synapse imprinter. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.5.jar` for the 1.21.1 profile.
 
 This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
@@ -19,6 +19,8 @@ This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Fo
 - A client-side engineering dashboard with configurable side panels and sixteen per-mob time-series plots.
 - An above-mob brain hologram for attached mobs, showing the live count of connectome edges activated by spikes in each 50 ms neural step.
 - A Neuro Viewer item and V shortcut that move the camera into an attached mob's view, with a configurable in-world telemetry panel.
+- A 3D Neuro Monitor block that displays the nearest live brain telemetry feed within 32 blocks.
+- A reusable Neuro Mind Imprinter that copies an attached mob's bounded learned-synapse state to another mob using the same connectome. It copies learned edge adjustments, not moment-to-moment neuron voltages.
 - A scrollable in-game Q&A guide, available with **H** or from the analysis popup, in English and Turkish.
 - Asynchronous JSONL telemetry written to the current world's `neurolab/events.jsonl` file.
 
@@ -66,8 +68,10 @@ For a dedicated server, install the mod on the server and on each client joining
 
 6. Open the dashboard with **Ctrl+N** and use **SETTINGS** to choose side panels and plots. The `N` key can be changed in Minecraft's Controls screen; Ctrl is the required modifier.
 7. Aim at a brain-attached mob and press **V** to view through its camera; press **V** again to return. The **Neuro Viewer** item in Tools & Utilities does the same with right-click; use it on air to exit. Press **I** to show or hide the small in-view data panel. The V and I bindings can be changed in Minecraft Controls; the panel preference is saved in `config/neurolab-dashboard.properties`.
-8. Press **H** for the in-game question-and-answer guide covering movement, signals, learning, and controls. Its binding can be changed in Minecraft Controls.
-9. When finished, detach a selected mob to restore its previous AI state:
+8. Place the **Neuro Monitor** within 32 blocks of a brain-attached mob to display its live spikes, synapse deliveries, pain, reward, and body output.
+9. Use the **Neuro Mind Imprinter** on an attached mob to capture its learned-synapse imprint, then use it on one or more target mobs. Targets are automatically attached; native movement attributes are retained.
+10. Press **H** for the in-game question-and-answer guide covering movement, signals, learning, and controls. Its binding can be changed in Minecraft Controls.
+11. When finished, detach a selected mob to restore its previous AI state:
 
    ```mcfunction
    /neurolab detach @e[type=neurolab:neuro_fly,limit=1,sort=nearest]

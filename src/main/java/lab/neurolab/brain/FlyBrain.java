@@ -35,6 +35,7 @@ public final class FlyBrain {
     private static final double SYNAPSE_SCALE_MV = 0.0008;
     private final ConnectomeData graph;
     private final SynapticPlasticity plasticity;
+    private volatile long[] pendingMindCopy;
     private final double[] voltage, current;
     private final byte[] refractory;
     private final boolean[] queued;
@@ -72,8 +73,18 @@ public final class FlyBrain {
     public long[] learnedSynapses() { return plasticity.snapshot(); }
     public int learningRevision() { return plasticity.revision(); }
 
+    /** Queue a copied learned-connectome imprint; applied at the next neural step. */
+    public void copyLearnedSynapses(long[] state) {
+        pendingMindCopy = java.util.Arrays.copyOf(state, state.length);
+    }
+
     /** Advance 50 ms of neural time. The call is intended for a dedicated worker thread, never the Minecraft tick. */
     public Snapshot advance(Drive drive) {
+        long[] copiedMind = pendingMindCopy;
+        if (copiedMind != null) {
+            pendingMindCopy = null;
+            plasticity.replace(copiedMind, graph.connections());
+        }
         long spikes = 0;
         long synapticEvents = 0;
         Map<String, Integer> counts = new HashMap<>();

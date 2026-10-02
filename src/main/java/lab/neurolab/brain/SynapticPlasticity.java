@@ -23,6 +23,16 @@ final class SynapticPlasticity {
     };
 
     SynapticPlasticity(long[] savedState, int edgeCount) {
+        restore(savedState, edgeCount);
+    }
+
+    void replace(long[] savedState, int edgeCount) {
+        learned.clear();
+        restore(savedState, edgeCount);
+        revision++;
+    }
+
+    private void restore(long[] savedState, int edgeCount) {
         for (long entry : savedState) {
             int edge = (int) (entry >>> 32);
             float change = Float.intBitsToFloat((int) entry);

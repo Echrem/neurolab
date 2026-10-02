@@ -51,6 +51,7 @@ public final class NeuroLabClient {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(NeuroLabEntities.NEURO_FLY.get(), NeuroFlyRenderer::new);
+        event.registerBlockEntityRenderer(NeuroLabEntities.NEURO_MONITOR_ENTITY.get(), NeuroMonitorRenderer::new);
     }
 
     @SubscribeEvent

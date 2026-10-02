@@ -1,0 +1,51 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "case": "minecraft:block/polished_deepslate",
+    "trim": "minecraft:block/copper_block",
+    "screen": "minecraft:block/black_concrete",
+    "particle": "minecraft:block/polished_deepslate"
+  },
+  "elements": [
+    {
+      "from": [1, 1, 2], "to": [15, 15, 14],
+      "faces": {
+        "north": { "texture": "#case" }, "south": { "texture": "#case" },
+        "east": { "texture": "#case" }, "west": { "texture": "#case" },
+        "up": { "texture": "#case" }, "down": { "texture": "#case" }
+      }
+    },
+    {
+      "from": [2, 3, 1], "to": [14, 14, 3],
+      "faces": {
+        "north": { "texture": "#trim" }, "south": { "texture": "#case" },
+        "east": { "texture": "#case" }, "west": { "texture": "#case" },
+        "up": { "texture": "#trim" }, "down": { "texture": "#case" }
+      }
+    },
+    {
+      "from": [3, 4, 0.9], "to": [13, 13, 1.1],
+      "faces": {
+        "north": { "texture": "#screen", "tintindex": 0 },
+        "south": { "texture": "#screen" }, "east": { "texture": "#screen" },
+        "west": { "texture": "#screen" }, "up": { "texture": "#screen" }, "down": { "texture": "#screen" }
+      }
+    },
+    {
+      "from": [6, 0, 5], "to": [10, 4, 11],
+      "faces": {
+        "north": { "texture": "#case" }, "south": { "texture": "#case" },
+        "east": { "texture": "#case" }, "west": { "texture": "#case" },
+        "up": { "texture": "#trim" }, "down": { "texture": "#case" }
+      }
+    },
+    {
+      "from": [3, 0, 4], "to": [13, 2, 12],
+      "faces": {
+        "north": { "texture": "#case" }, "south": { "texture": "#case" },
+        "east": { "texture": "#case" }, "west": { "texture": "#case" },
+        "up": { "texture": "#trim" }, "down": { "texture": "#case" }
+      }
+    }
+  ]
+}

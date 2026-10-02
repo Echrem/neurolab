@@ -6,6 +6,7 @@ import lab.neurolab.brain.FlyBrain;
 import lab.neurolab.brain.EmbodimentDecoder;
 import lab.neurolab.entity.NeuroFlyEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -64,6 +65,28 @@ public final class BrainAttachmentService {
     }
 
     public static boolean isAttached(Mob mob) { return ATTACHED.containsKey(mob.getUUID()); }
+
+    public static long[] copyMindSnapshot(Mob mob) {
+        Attachment attachment = ATTACHED.get(mob.getUUID());
+        return attachment == null
+                ? mob.getPersistentData().getLongArray(LEARNED_SYNAPSES_TAG).clone()
+                : attachment.worker.learnedSynapses();
+    }
+
+    /** Apply a portable learned-synapse imprint and attach the shared connectome when needed. */
+    public static String applyMindCopy(Mob mob, long[] state) {
+        if (state.length > 8192) return "Mind imprint exceeds the supported sparse-synapse limit.";
+        if (!(mob.level() instanceof ServerLevel)) return "Choose a mob in a server-side world.";
+        mob.getPersistentData().putLongArray(LEARNED_SYNAPSES_TAG, state);
+        Attachment attachment = ATTACHED.get(mob.getUUID());
+        if (attachment != null) {
+            attachment.worker.copyLearnedSynapses(state);
+            return null;
+        }
+        String failure = attachFailure(mob);
+        if (failure != null) return failure;
+        return attach(mob) ? null : "Could not attach the copied connectome to this mob.";
+    }
 
     public static String stimulate(Mob mob, String senseName, float strength, int durationTicks) {
         Attachment attachment = ATTACHED.get(mob.getUUID());
@@ -136,8 +159,35 @@ public final class BrainAttachmentService {
                         a.stimuli.activeCount(gameTick) > 0, a.mode, trial);
             }
             if (!a.mode.controlsBody()) continue;
+            boolean neuroFly = mob instanceof NeuroFlyEntity;
+            if (neuroFly && a.mode == ControlMode.ASSISTED && a.wallClingTicks == 0
+                    && a.wallClingCooldownUntil <= gameTick && mob.horizontalCollision
+                    && senses.looming() < 0.25f && senses.pain() < 0.2f) {
+                a.wallClingTicks = 12;
+                a.wallClingCooldownUntil = gameTick + 80;
+            }
+            if (neuroFly && a.wallClingTicks > 0) {
+                a.wallClingTicks--;
+                mob.setDeltaMovement(Vec3.ZERO);
+                continue;
+            }
             double turn = body.turn();
-            mob.setYRot(mob.getYRot() + (float) (turn * 6));
+            if (neuroFly && a.mode == ControlMode.ASSISTED && body.escape()) {
+                turn = Math.max(-1, Math.min(1, turn + world.cue().threatTurn() * 0.8));
+                a.maneuverTicks = 0;
+                a.nextManeuverTick = gameTick + 20;
+            } else if (neuroFly && a.mode == ControlMode.ASSISTED && world.cue().targetStrength() < 0.05) {
+                if (a.maneuverTicks == 0 && gameTick >= a.nextManeuverTick) {
+                    a.maneuverTicks = 6;
+                    a.maneuverSign = (mob.getUUID().getLeastSignificantBits() & 1L) == 0 ? 1 : -1;
+                    a.nextManeuverTick = gameTick + 42 + ((mob.getUUID().getLeastSignificantBits() >>> 1) & 31);
+                }
+                if (a.maneuverTicks > 0) {
+                    turn += a.maneuverTicks > 2 ? a.maneuverSign * 0.95 : -a.maneuverSign * 0.55;
+                    a.maneuverTicks--;
+                }
+            }
+            mob.setYRot(mob.getYRot() + (float) (turn * (neuroFly ? 14 : 6)));
             mob.yBodyRot = mob.getYRot();
             Vec3 velocity = mob.getDeltaMovement();
             var flyingAttribute = net.minecraft.world.entity.ai.attributes.Attributes.FLYING_SPEED;
@@ -149,13 +199,15 @@ public final class BrainAttachmentService {
             double movement = mob.getAttributeValue(canFly && mob.getAttribute(flyingAttribute) != null
                     ? flyingAttribute : net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
             double throttle = Math.max(0, Math.min(1, body.forward()));
+            if (neuroFly && a.mode == ControlMode.ASSISTED && world.cue().targetStrength() < 0.05)
+                throttle = body.escape() ? 1.0 : Math.max(throttle, 0.48);
             double forward = throttle * Math.max(0, movement);
             double newYaw = Math.toRadians(mob.getYRot());
             double vx = -Math.sin(newYaw) * forward;
             double vz = Math.cos(newYaw) * forward;
             double vy = velocity.y;
             if (canFly) {
-                double maxVerticalSpeed = Math.max(0, movement * 0.75);
+                double maxVerticalSpeed = Math.max(0, movement * (neuroFly ? 1.0 : 0.75));
                 double liftCommand = Math.max(0, Math.min(1, body.lift()));
                 if (mob instanceof NeuroFlyEntity && a.mode == ControlMode.ASSISTED) {
                     int ground = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
@@ -174,6 +226,12 @@ public final class BrainAttachmentService {
             }
             mob.setDeltaMovement(0, vy, 0);
             mob.move(net.minecraft.world.entity.MoverType.SELF, new Vec3(vx, 0, vz));
+            if (neuroFly && a.mode == ControlMode.ASSISTED && mob.horizontalCollision
+                    && senses.looming() < 0.25f && senses.pain() < 0.2f
+                    && a.wallClingCooldownUntil <= gameTick) {
+                a.wallClingTicks = 12;
+                a.wallClingCooldownUntil = gameTick + 80;
+            }
             mob.hasImpulse = true;
         }
     }
@@ -185,6 +243,8 @@ public final class BrainAttachmentService {
         float light = sampleEye(level, mob, eye, yaw);
         float rightEye = sampleEye(level, mob, eye, yaw + Math.toRadians(28));
         float looming = 0;
+        double threatTurn = (mob.getUUID().getLeastSignificantBits() & 1L) == 0 ? 1 : -1;
+        double threatStrength = 0;
         double nearestItem = Double.POSITIVE_INFINITY;
         Entity target = null;
         double targetDistance = Double.POSITIVE_INFINITY;
@@ -193,10 +253,6 @@ public final class BrainAttachmentService {
             if (nearby instanceof ItemEntity item && !item.getItem().isEmpty()) {
                 nearestItem = Math.min(nearestItem, distance);
                 if (distance < targetDistance) { target = nearby; targetDistance = distance; }
-            } else if (nearby instanceof Player player && !player.isSpectator()
-                    && distance < targetDistance) {
-                target = nearby;
-                targetDistance = distance;
             }
             if (nearby instanceof ItemEntity) continue;
             Vec3 relative = nearby.getBoundingBox().getCenter().subtract(eye);
@@ -205,14 +261,34 @@ public final class BrainAttachmentService {
                 boolean closing = nearby.getDeltaMovement().subtract(mob.getDeltaMovement()).dot(relative) < 0;
                 double intensity = (1 - centerDistance / 3.5) * (closing ? 1.0 : 0.35);
                 looming = Math.max(looming, (float) intensity);
+                if (intensity > threatStrength) {
+                    double relativeYaw = net.minecraft.util.Mth.wrapDegrees((float) Math.toDegrees(
+                            Math.atan2(-relative.x, relative.z)) - mob.getYRot());
+                    threatTurn = Math.abs(relativeYaw) < 8
+                            ? ((mob.getUUID().getLeastSignificantBits() & 1L) == 0 ? 1 : -1)
+                            : (relativeYaw > 0 ? -1 : 1);
+                    threatStrength = intensity;
+                }
             }
         }
         float tactile = mob.horizontalCollision || mob.verticalCollision || mob.hurtTime > 0 ? 1 : 0;
-        float odor = Double.isFinite(nearestItem) ? (float) Math.max(0, Math.min(1, 1 - nearestItem / 8)) : 0;
+        long gameTick = level.getGameTime();
+        if (mob instanceof NeuroFlyEntity && (attachment.lastFlowerSearchTick == Long.MIN_VALUE
+                || gameTick - attachment.lastFlowerSearchTick >= 10)) {
+            attachment.flowerTarget = findNearestFlower(mob, level);
+            attachment.lastFlowerSearchTick = gameTick;
+        }
+        BlockPos flower = attachment.flowerTarget;
+        double flowerDistance = flower == null ? Double.POSITIVE_INFINITY
+                : mob.position().distanceTo(Vec3.atCenterOf(flower));
+        float odor = 0;
+        double scentDistance = Math.min(nearestItem, flowerDistance);
+        if (Double.isFinite(scentDistance)) odor = (float) Math.max(0, Math.min(1, 1 - scentDistance / 10));
         net.minecraft.world.level.block.state.BlockState underfoot = level.getBlockState(mob.blockPosition());
         float taste = underfoot.is(net.minecraft.world.level.block.Blocks.HONEY_BLOCK)
                 || underfoot.is(net.minecraft.world.level.block.Blocks.CAKE)
-                || underfoot.is(net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH) ? 1 : 0;
+                || underfoot.is(net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH)
+                || underfoot.is(BlockTags.FLOWERS) || flowerDistance < 1.5 ? 1 : 0;
         float health = mob.getHealth();
         float maxHealth = Math.max(1, mob.getMaxHealth());
         float pain = mob.hurtTime > 0 || mob.isOnFire() || mob.isInLava() ? 1 : 0;
@@ -230,12 +306,42 @@ public final class BrainAttachmentService {
             reward = Math.max(reward, (float) Math.min(0.25, progress * 0.2));
         }
         attachment.lastItemDistance = nearestItem;
+        if (Double.isFinite(flowerDistance)) {
+            if (Double.isFinite(attachment.lastFlowerDistance)) {
+                double progress = Math.max(0, attachment.lastFlowerDistance - flowerDistance);
+                reward = Math.max(reward, (float) Math.min(0.18, progress * 0.25));
+            }
+            if (flowerDistance < 1.5 && gameTick >= attachment.nextFlowerRewardTick) {
+                reward = Math.max(reward, 0.45f);
+                attachment.nextFlowerRewardTick = gameTick + 100;
+            }
+        }
+        attachment.lastFlowerDistance = flowerDistance;
         FlyBrain.Drive senses = new FlyBrain.Drive(light, leftEye, rightEye, looming, tactile, odor, taste,
                 pain, reward);
 
+        Vec3 targetPosition = target == null ? null : target.position();
+        if (flower != null && flowerDistance < targetDistance) {
+            targetPosition = Vec3.atCenterOf(flower);
+            targetDistance = flowerDistance;
+        }
+
+        boolean rainSeeking = mob instanceof NeuroFlyEntity
+                && level.isRainingAt(BlockPos.containing(eye)) && level.canSeeSky(BlockPos.containing(eye));
+        if (rainSeeking) {
+            if (attachment.lastShelterSearchTick == Long.MIN_VALUE || gameTick - attachment.lastShelterSearchTick >= 20) {
+                attachment.shelterTarget = findNearestShelter(mob, level);
+                attachment.lastShelterSearchTick = gameTick;
+            }
+            if (attachment.shelterTarget != null) {
+                targetPosition = Vec3.atCenterOf(attachment.shelterTarget);
+                targetDistance = mob.position().distanceTo(targetPosition);
+            }
+        }
+
         EmbodimentDecoder.WorldCue cue = EmbodimentDecoder.WorldCue.NONE;
-        if (target != null) {
-            Vec3 towardTarget = target.position().subtract(mob.position());
+        if (targetPosition != null) {
+            Vec3 towardTarget = targetPosition.subtract(mob.position());
             double targetYaw = Math.toDegrees(Math.atan2(-towardTarget.x, towardTarget.z));
             double relativeYaw = net.minecraft.util.Mth.wrapDegrees((float) targetYaw - mob.getYRot());
             double strength = Math.max(0, Math.min(1, (10 - targetDistance) / 6));
@@ -253,9 +359,47 @@ public final class BrainAttachmentService {
             if (Math.abs(avoidance) < 0.08)
                 avoidance = (mob.getUUID().getLeastSignificantBits() & 1L) == 0 ? -0.75 : 0.75;
             cue = new EmbodimentDecoder.WorldCue(cue.targetTurn(), cue.targetStrength(),
-                    cue.targetDistance(), obstacle, avoidance);
+                    cue.targetDistance(), obstacle, avoidance, cue.threatTurn(), cue.threatStrength());
+        }
+        if (looming > 0.25f) {
+            cue = new EmbodimentDecoder.WorldCue(cue.targetTurn(), cue.targetStrength(), cue.targetDistance(),
+                    cue.obstacle(), cue.avoidanceTurn(), threatTurn, threatStrength);
         }
         return new WorldSample(senses, cue);
+    }
+
+    private static BlockPos findNearestFlower(Mob mob, ServerLevel level) {
+        BlockPos origin = mob.blockPosition();
+        BlockPos best = null;
+        double bestDistance = 8 * 8;
+        for (int y = -2; y <= 3; y++) for (int x = -7; x <= 7; x++) for (int z = -7; z <= 7; z++) {
+            BlockPos candidate = origin.offset(x, y, z);
+            if (!level.hasChunkAt(candidate)) continue;
+            if (!level.getBlockState(candidate).is(BlockTags.FLOWERS)) continue;
+            double distance = mob.distanceToSqr(candidate.getX() + 0.5, candidate.getY() + 0.5,
+                    candidate.getZ() + 0.5);
+            if (distance < bestDistance) { best = candidate.immutable(); bestDistance = distance; }
+        }
+        return best;
+    }
+
+    private static BlockPos findNearestShelter(Mob mob, ServerLevel level) {
+        BlockPos origin = mob.blockPosition();
+        BlockPos best = null;
+        double bestDistance = 10 * 10;
+        for (int y = -2; y <= 3; y++) for (int x = -8; x <= 8; x++) for (int z = -8; z <= 8; z++) {
+            BlockPos candidate = origin.offset(x, y, z);
+            if (!level.hasChunkAt(candidate)) continue;
+            if (level.isRainingAt(candidate) || level.canSeeSky(candidate)) continue;
+            if (!level.getFluidState(candidate).isEmpty()) continue;
+            double distance = mob.distanceToSqr(candidate.getX() + 0.5, candidate.getY() + 0.5,
+                    candidate.getZ() + 0.5);
+            if (distance >= bestDistance) continue;
+            var box = mob.getBoundingBox().move(candidate.getX() + 0.5 - mob.getX(),
+                    candidate.getY() - mob.getY(), candidate.getZ() + 0.5 - mob.getZ());
+            if (level.noCollision(mob, box)) { best = candidate.immutable(); bestDistance = distance; }
+        }
+        return best;
     }
 
     private static double blockClearance(ServerLevel level, Mob mob, Vec3 origin, double yaw, double distance) {
@@ -355,12 +499,24 @@ public final class BrainAttachmentService {
         private int persistedLearningRevision;
         private float lastHealth;
         private double lastItemDistance = Double.POSITIVE_INFINITY;
+        private BlockPos flowerTarget;
+        private double lastFlowerDistance = Double.POSITIVE_INFINITY;
+        private long lastFlowerSearchTick = Long.MIN_VALUE;
+        private long nextFlowerRewardTick;
+        private BlockPos shelterTarget;
+        private long lastShelterSearchTick = Long.MIN_VALUE;
+        private long wallClingCooldownUntil;
+        private int wallClingTicks;
+        private long nextManeuverTick;
+        private int maneuverTicks;
+        private int maneuverSign;
 
         private Attachment(Mob mob, BrainWorker worker, boolean originalNoAi) {
             this.mob = mob;
             this.worker = worker;
             this.originalNoAi = originalNoAi;
             this.lastHealth = mob.getHealth();
+            this.nextManeuverTick = 20 + (mob.getUUID().getLeastSignificantBits() & 31);
         }
     }
 

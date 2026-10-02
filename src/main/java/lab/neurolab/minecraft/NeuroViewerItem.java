@@ -19,7 +19,7 @@ public final class NeuroViewerItem extends Item {
     @Override
     public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity target,
                                                    InteractionHand hand) {
-        if (player.level().isClientSide) return InteractionResult.SUCCESS;
+        if (player.level().isClientSide) return InteractionResult.sidedSuccess(true);
         if (!(player instanceof ServerPlayer serverPlayer) || !(target instanceof Mob mob)
                 || !BrainAttachmentService.isAttached(mob)) {
             player.displayClientMessage(Component.literal("Neuro Viewer needs a brain-attached mob."), true);
@@ -39,6 +39,6 @@ public final class NeuroViewerItem extends Item {
             player.displayClientMessage(Component.literal("Neuro view closed."), true);
             return InteractionResultHolder.consume(stack);
         }
-        return InteractionResultHolder.pass(stack);
+        return InteractionResultHolder.sidedSuccess(stack, true);
     }
 }

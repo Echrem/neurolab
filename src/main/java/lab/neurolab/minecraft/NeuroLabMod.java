@@ -36,6 +36,8 @@ public final class NeuroLabMod {
         var modBus = context.getModEventBus();
         NeuroLabEntities.ENTITY_TYPES.register(modBus);
         NeuroLabEntities.ITEMS.register(modBus);
+        NeuroLabEntities.BLOCKS.register(modBus);
+        NeuroLabEntities.BLOCK_ENTITY_TYPES.register(modBus);
         TelemetryNetwork.initialize();
     }
 

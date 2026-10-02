@@ -5,6 +5,12 @@
   "entity.neurolab.neuro_fly": "Neuro Sinek",
   "item.neurolab.neuro_fly_spawn_egg": "Neuro Sinek Çağırma Yumurtası",
   "item.neurolab.neuro_viewer": "Neuro İzleyici",
+  "item.neurolab.neuro_mind_imprinter": "Neuro Zihin Kopyalayıcı",
+  "block.neurolab.neuro_monitor": "Neuro Monitör",
+  "message.neurolab.imprinter.mob_required": "Neuro Zihin Kopyalayıcıyı bir mob üzerinde kullan.",
+  "message.neurolab.imprinter.source_required": "Önce beyin takılı bir mobda kullanarak sinaps izini kopyala.",
+  "message.neurolab.imprinter.captured": "Sinaps izi kopyalandı: %s öğrenilmiş kenar. Başka bir moba aktarmak için eşyayı kullan.",
+  "message.neurolab.imprinter.applied": "%s öğrenilmiş kenar %s adlı moba kopyalandı. Bu izi tekrar kullanabilirsin.",
   "key.neurolab.view": "Hedefteki beyinli mobu izle / geri dön (V)",
   "key.neurolab.view_hud": "Neuro İzleyici veri panelini aç/kapat (I)",
   "key.neurolab.guide": "NeuroLab soru-cevap rehberi (H)",
@@ -28,5 +34,9 @@
   "screen.neurolab.guide.q7": "Analiz ve panel ayarları nerede?",
   "screen.neurolab.guide.a7": "Analiz penceresi için Ctrl+N, yan panelleri ve grafikleri seçmek için SETTINGS düğmesi. Bu rehberi H ile aç. Tuşları Minecraft Kontroller ekranından değiştirebilirsin.",
   "screen.neurolab.guide.q8": "Panel boş veya mob hareket etmiyor; ne yapmalıyım?",
-  "screen.neurolab.guide.a8": "Bağlantı grafiğinin yüklenmesini bekle ve /neurolab status ile durumu kontrol et. Mob için /neurolab inspect komutunu kullan; istemci ve sunucuda aynı mod sürümünün kurulu olduğundan emin ol. Observe modu bilerek hareket ettirmez."
+  "screen.neurolab.guide.a8": "Bağlantı grafiğinin yüklenmesini bekle ve /neurolab status ile durumu kontrol et. Mob için /neurolab inspect komutunu kullan; istemci ve sunucuda aynı mod sürümünün kurulu olduğundan emin ol. Observe modu bilerek hareket ettirmez.",
+  "screen.neurolab.guide.q9": "Öğrenilmiş sinapsları başka bir moba kopyalayabilir miyim?",
+  "screen.neurolab.guide.a9": "Neuro Zihin Kopyalayıcıyı beyin takılı kaynak moba, ardından hedef moba kullan. Hedef aynı bağlantı grafiğiyle birlikte seyrek öğrenilmiş sinaps ayarlarını alır; anlık nöron etkinliği kopyalanmaz.",
+  "screen.neurolab.guide.q10": "Neuro Monitör bloğu ne gösterir?",
+  "screen.neurolab.guide.a10": "Beyin takılı bir mobun 32 blok yakınına yerleştir. 3B ekran en yakındaki canlı telemetriyi izleyerek spike, yönlü sinaps aktarımı, acı, ödül ve beden çıktısını gösterir."
 }

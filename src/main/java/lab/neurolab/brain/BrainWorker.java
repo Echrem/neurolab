@@ -34,6 +34,7 @@ public final class BrainWorker implements AutoCloseable {
     public double realTimeFactor() { return realTimeFactor; }
     public long[] learnedSynapses() { return brain.learnedSynapses(); }
     public int learningRevision() { return brain.learningRevision(); }
+    public void copyLearnedSynapses(long[] state) { brain.copyLearnedSynapses(state); }
 
     private void run() {
         if (running.get()) {
