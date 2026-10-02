@@ -3,6 +3,7 @@ package lab.neurolab.minecraft;
 import lab.neurolab.brain.FlyBrain;
 import lab.neurolab.brain.EmbodimentDecoder;
 import lab.neurolab.brain.ControlMode;
+import lab.neurolab.brain.TrialSession;
 import lab.neurolab.brain.StimulusSchedule;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.Commands;
@@ -95,6 +96,24 @@ public final class NeuroLabMod {
                                 ctx.getSource().sendSuccess(() -> Component.literal(BrainAttachmentService.describe(mob)), false);
                                 return null;
                             }))))
+                    .then(Commands.literal("trial").then(Commands.argument("mob", EntityArgument.entity())
+                            .then(Commands.argument("label", StringArgumentType.word())
+                                    .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 12000))
+                                            .executes(ctx -> withMob(ctx, mob -> {
+                                                String label = StringArgumentType.getString(ctx, "label");
+                                                int ticks = IntegerArgumentType.getInteger(ctx, "ticks");
+                                                String failure = BrainAttachmentService.startTrial(mob, label, ticks);
+                                                if (failure == null) ctx.getSource().sendSuccess(() -> Component.literal(
+                                                        "Trial '" + label + "' started for " + ticks + " world ticks."), false);
+                                                return failure;
+                                            })))))
+                    .then(Commands.literal("endtrial").then(Commands.argument("mob", EntityArgument.entity())
+                            .executes(ctx -> withMob(ctx, mob -> {
+                                String failure = BrainAttachmentService.endTrial(mob);
+                                if (failure == null) ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "Trial ended and recorded."), false);
+                                return failure;
+                            }))))
                     .then(Commands.literal("unstimulate").then(Commands.argument("mob", EntityArgument.entity())
                             .executes(ctx -> withMob(ctx, mob -> {
                                 String failure = BrainAttachmentService.clearStimuli(mob);
@@ -129,7 +148,7 @@ public final class NeuroLabMod {
                                                     .executes(ctx -> stimulate(ctx, 40))
                                                     .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 1200))
                                                             .executes(ctx -> stimulate(ctx,
-                                                                    IntegerArgumentType.getInteger(ctx, "ticks")))))))));
+                                                                    IntegerArgumentType.getInteger(ctx, "ticks"))))))))));
         }
 
         private static int withMob(com.mojang.brigadier.context.CommandContext<net.minecraft.commands.CommandSourceStack> ctx,
@@ -191,14 +210,15 @@ public final class NeuroLabMod {
     }
 
     static void sendTelemetry(Mob mob, FlyBrain.Snapshot snapshot, FlyBrain.Drive senses,
-                              EmbodimentDecoder.Command body, boolean testStimulus, ControlMode mode) {
+                              EmbodimentDecoder.Command body, boolean testStimulus, ControlMode mode,
+                              TrialSession.Snapshot trial) {
         BrainTelemetryPayload packet = new BrainTelemetryPayload(mob.getId(), (int) snapshot.spikes(),
                 snapshot.activeNeurons(), (float) snapshot.forward(), (float) snapshot.turn(),
                 (float) snapshot.lift(), (float) BrainAttachmentService.realTimeFactor(mob), snapshot.escape(),
                 senses.light(), senses.leftEye(), senses.rightEye(), senses.looming(), senses.tactile(),
                 senses.odor(), senses.taste(), (float) body.forward(), (float) body.turn(),
                 (float) body.lift(), body.escape(), body.reflex(), testStimulus, mode);
-        TelemetryLog.record(packet, mob.getUUID(), mob.level().dimension().location().toString(), mob.level().getGameTime());
+        TelemetryLog.record(packet, mob.getUUID(), mob.level().dimension().location().toString(), mob.level().getGameTime(), trial);
         TelemetryNetwork.CHANNEL.send(packet, PacketDistributor.TRACKING_ENTITY.with(mob));
     }
 }

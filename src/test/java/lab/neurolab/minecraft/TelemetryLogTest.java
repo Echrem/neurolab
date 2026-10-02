@@ -1,6 +1,7 @@
 package lab.neurolab.minecraft;
 
 import com.google.gson.JsonParser;
+import lab.neurolab.brain.TrialSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
@@ -17,7 +18,7 @@ class TelemetryLogTest {
         TelemetryLog.start(file);
         try {
             TelemetryLog.record(new BrainTelemetryPayload(7, 12, 3, 0, 0, 0, 1, false),
-                    uuid, "minecraft:overworld", 1234);
+                    uuid, "minecraft:overworld", 1234, null);
         } finally { TelemetryLog.stop(); }
         var lines = Files.readAllLines(file);
         assertEquals(1, lines.size());

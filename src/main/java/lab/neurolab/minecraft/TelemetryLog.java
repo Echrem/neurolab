@@ -7,6 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import lab.neurolab.brain.ControlMode;
+import lab.neurolab.brain.TrialSession;
+import net.minecraft.world.entity.Mob;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,10 +37,14 @@ public final class TelemetryLog {
         writer.start();
     }
 
-    public static void record(BrainTelemetryPayload p, java.util.UUID entityUuid, String dimension, long gameTick) {
+    public static void record(BrainTelemetryPayload p, java.util.UUID entityUuid, String dimension, long gameTick,
+                              TrialSession.Snapshot trial) {
+        String trialFields = trial == null ? ",\"trialLabel\":null,\"trialTick\":null"
+                : ",\"trialLabel\":\"" + trial.label() + "\",\"trialTick\":"
+                + trial.elapsedTicks(gameTick);
         String line = "{\"time\":\"" + Instant.now() + "\",\"entityId\":" + p.entityId()
                 + ",\"entityUuid\":\"" + entityUuid + "\",\"dimension\":\"" + dimension
-                + "\",\"gameTick\":" + gameTick + ",\"mode\":\"" + p.mode().id() + "\""
+                + "\",\"gameTick\":" + gameTick + ",\"mode\":\"" + p.mode().id() + "\"" + trialFields
                 + ",\"spikes\":" + p.spikes() + ",\"activeNeurons\":" + p.active()
                 + ",\"forward\":" + p.forward() + ",\"turn\":" + p.turn()
                 + ",\"lift\":" + p.lift() + ",\"realTimeFactor\":" + p.realTimeFactor()
@@ -48,6 +55,16 @@ public final class TelemetryLog {
                 + ",\"bodyForward\":" + p.bodyForward() + ",\"bodyTurn\":" + p.bodyTurn()
                 + ",\"bodyLift\":" + p.bodyLift() + ",\"bodyEscape\":" + p.bodyEscape()
                 + ",\"reflex\":" + p.reflex() + ",\"testStimulus\":" + p.testStimulus() + "}";
+        if (!QUEUE.offer(line)) DROPPED.increment();
+    }
+
+    public static void trialEvent(String event, Mob mob, ControlMode mode, TrialSession.Snapshot trial, long gameTick) {
+        String line = "{\"time\":\"" + Instant.now() + "\",\"event\":\"" + event
+                + "\",\"entityId\":" + mob.getId() + ",\"entityUuid\":\"" + mob.getUUID()
+                + "\",\"dimension\":\"" + mob.level().dimension().location()
+                + "\",\"mode\":\"" + mode.id() + "\",\"trialLabel\":\""
+                + trial.label() + "\",\"trialStartedAt\":" + trial.startedAtTick()
+                + ",\"trialEndsAt\":" + trial.endsAtTick() + ",\"gameTick\":" + gameTick + "}";
         if (!QUEUE.offer(line)) DROPPED.increment();
     }
 

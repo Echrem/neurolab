@@ -20,6 +20,7 @@ import java.util.Locale;
 import lab.neurolab.brain.ControlMode;
 import lab.neurolab.brain.StimulusSchedule;
 import lab.neurolab.brain.StimulusSchedule.Sense;
+import lab.neurolab.brain.TrialSession;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -87,6 +88,8 @@ public final class BrainAttachmentService {
         Attachment a = ATTACHED.remove(mob.getUUID());
         if (a == null) return false;
         a.worker.close();
+        TrialSession.Snapshot trial = a.trial.end();
+        if (trial != null) TelemetryLog.trialEvent("trial_end", mob, a.mode, trial, mob.level().getGameTime());
         mob.setNoAi(a.originalNoAi);
         return true;
     }
@@ -116,8 +119,15 @@ public final class BrainAttachmentService {
             FlyBrain.Snapshot neural = a.worker.snapshot();
             EmbodimentDecoder.Command body = EmbodimentDecoder.decode(neural, senses, mob.tickCount,
                     mob.getUUID().getLeastSignificantBits(), a.mode);
-            if (mob.tickCount % 2 == 0)
-                NeuroLabMod.sendTelemetry(mob, neural, senses, body, a.stimuli.activeCount(level.getGameTime()) > 0, a.mode);
+            long gameTick = level.getGameTime();
+            TrialSession.Snapshot endedTrial = a.trial.expire(gameTick);
+            if (endedTrial != null) TelemetryLog.trialEvent("trial_end", mob, a.mode,
+                    endedTrial, endedTrial.endsAtTick());
+            if (mob.tickCount % 2 == 0) {
+                TrialSession.Snapshot trial = a.trial.current(gameTick);
+                NeuroLabMod.sendTelemetry(mob, neural, senses, body,
+                        a.stimuli.activeCount(gameTick) > 0, a.mode, trial);
+            }
             if (!a.mode.controlsBody()) continue;
             double turn = body.turn();
             mob.setYRot(mob.getYRot() + (float) (turn * 6));
@@ -178,6 +188,30 @@ public final class BrainAttachmentService {
         return null;
     }
 
+    public static String startTrial(Mob mob, String label, int durationTicks) {
+        Attachment a = ATTACHED.get(mob.getUUID());
+        if (a == null) return "Attach a brain to this mob first.";
+        long tick = mob.level().getGameTime();
+        TrialSession candidate = new TrialSession();
+        TrialSession.Snapshot started;
+        try { started = candidate.start(label, tick, durationTicks); }
+        catch (IllegalArgumentException | ArithmeticException invalid) { return invalid.getMessage(); }
+        TrialSession.Snapshot previous = a.trial.end();
+        if (previous != null) TelemetryLog.trialEvent("trial_end", mob, a.mode, previous, tick);
+        a.trial.start(started.label(), started.startedAtTick(), Math.toIntExact(started.durationTicks()));
+        TelemetryLog.trialEvent("trial_start", mob, a.mode, started, tick);
+        return null;
+    }
+
+    public static String endTrial(Mob mob) {
+        Attachment a = ATTACHED.get(mob.getUUID());
+        if (a == null) return "Attach a brain to this mob first.";
+        TrialSession.Snapshot ended = a.trial.end();
+        if (ended == null) return "No trial is active.";
+        TelemetryLog.trialEvent("trial_end", mob, a.mode, ended, mob.level().getGameTime());
+        return null;
+    }
+
     public static String clearStimuli(Mob mob) {
         Attachment a = ATTACHED.get(mob.getUUID());
         if (a == null) return "Attach a brain to this mob first.";
@@ -189,11 +223,13 @@ public final class BrainAttachmentService {
         Attachment a = ATTACHED.get(mob.getUUID());
         if (a == null) return mob.getName().getString() + ": no NeuroLab brain attached.";
         FlyBrain.Snapshot snapshot = a.worker.snapshot();
+        long gameTick = mob.level().getGameTime();
+        TrialSession.Snapshot trial = a.trial.current(gameTick);
         return String.format(Locale.ROOT,
-                "%s · mode %s · neural tick %d · spikes %d · active %d · real-time %.2fx · test pulses %d · original AI %s",
+                "%s · mode %s · neural tick %d · spikes %d · active %d · real-time %.2fx · test pulses %d · trial %s · original AI %s",
                 mob.getName().getString(), a.mode.id(), snapshot.tick(), snapshot.spikes(),
                 snapshot.activeNeurons(), a.worker.realTimeFactor(),
-                a.stimuli.activeCount(mob.level().getGameTime()), a.originalNoAi ? "disabled" : "enabled");
+                a.stimuli.activeCount(gameTick), trial == null ? "none" : trial.label() + " (" + trial.elapsedTicks(gameTick) + "/" + trial.durationTicks() + " ticks)", a.originalNoAi ? "disabled" : "enabled");
     }
 
     public static CompletableFuture<ConnectomeData> connectomeStatus() { return data; }
@@ -205,7 +241,12 @@ public final class BrainAttachmentService {
     }
 
     public static void shutdown() {
-        for (Attachment a : ATTACHED.values()) { a.worker.close(); a.mob.setNoAi(a.originalNoAi); }
+        for (Attachment a : ATTACHED.values()) {
+            a.worker.close();
+            TrialSession.Snapshot trial = a.trial.end();
+            if (trial != null) TelemetryLog.trialEvent("trial_end", a.mob, a.mode, trial, a.mob.level().getGameTime());
+            a.mob.setNoAi(a.originalNoAi);
+        }
         ATTACHED.clear();
         AUTO_ATTACH_PENDING.clear();
     }
@@ -217,6 +258,7 @@ public final class BrainAttachmentService {
         private final boolean originalNoAi;
         private final StimulusSchedule stimuli = new StimulusSchedule();
         private ControlMode mode = ControlMode.ASSISTED;
+        private final TrialSession trial = new TrialSession();
 
         private Attachment(Mob mob, BrainWorker worker, boolean originalNoAi) {
             this.mob = mob;

@@ -6,7 +6,7 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.3.1 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.3.1.jar` for the 1.21.1 profile.
+Version 0.4.0 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.0.jar` for the 1.21.1 profile.
 
 This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
@@ -95,12 +95,14 @@ Switch an attached mob between three explicit conditions without restarting its 
 ```mcfunction
 /neurolab mode @e[type=neurolab:neuro_fly,limit=1,sort=nearest] neural
 /neurolab inspect @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
+/neurolab trial @e[type=neurolab:neuro_fly,limit=1,sort=nearest] wall_baseline 1200
+/neurolab endtrial @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
 /neurolab stimulate @e[type=neurolab:neuro_fly,limit=1,sort=nearest] left_eye 0.8 100
 /neurolab unstimulate @e[type=neurolab:neuro_fly,limit=1,sort=nearest]
 /neurolab mode @e[type=neurolab:neuro_fly,limit=1,sort=nearest] observe
 ```
 
-Mode and sense arguments support tab completion. `inspect` reports the mode, neural tick, spikes, active cells, real-time factor, and active test-pulse count. `unstimulate` removes all test pulses while natural sensory input continues. Setting a sense's stimulus strength to zero cancels that sense only. Reapplying a sense replaces its strength and duration. Durations use server world ticks and expire at the exact deadline.
+Mode and sense arguments support tab completion. `/neurolab trial <mob> <label> <ticks>` marks a named interval of 1–12000 server ticks (up to ten minutes); labels use letters, numbers, dots, underscores, and hyphens. `/neurolab endtrial <mob>` closes it early. Starting another trial closes the previous one. Trials do not reset or pause the brain: use them to segment continuous runs, not as independent initial-state-matched experiments. Start/end markers and each sample's `trialLabel` and relative `trialTick` are recorded in JSONL. Trials end automatically at their duration. `inspect` reports the mode, neural tick, spikes, active cells, real-time factor, and active test-pulse count. `unstimulate` removes all test pulses while natural sensory input continues. Setting a sense's stimulus strength to zero cancels that sense only. Reapplying a sense replaces its strength and duration. Durations use server world ticks and expire at the exact deadline.
 
 Changing modes preserves neural state and existing pulses; it is not a reset or a matched independent trial. Normal physics still applies in `neural` mode. In `observe` mode, body-command fields are zero because NeuroLab applies none; they do not measure the mob's actual velocity. A mob whose AI was disabled before attachment remains AI-disabled in observation mode. Attachment and mode choices are session state and are not persisted across chunk unloads.
 
@@ -132,7 +134,7 @@ This panel visualizes decoded telemetry; it does not render the full connectome 
 <world>/neurolab/events.jsonl
 ```
 
-Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; the expanded telemetry uses protocol 3.
+Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. When a trial is active, observations also include its `trialLabel` and tick offset; `trial_start` and `trial_end` records make boundaries explicit, including automatic expiry and entity unload. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; the expanded telemetry uses protocol 3.
 
 The JSONL log is intended for offline inspection and analysis. Avoid sharing it without checking it for world or server details you do not want to publish.
 
