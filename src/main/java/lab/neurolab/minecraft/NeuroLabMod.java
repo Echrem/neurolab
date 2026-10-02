@@ -212,7 +212,7 @@ public final class NeuroLabMod {
     static void sendTelemetry(Mob mob, FlyBrain.Snapshot snapshot, FlyBrain.Drive senses,
                               EmbodimentDecoder.Command body, boolean testStimulus, ControlMode mode,
                               TrialSession.Snapshot trial) {
-        BrainTelemetryPayload packet = new BrainTelemetryPayload(mob.getId(), (int) snapshot.spikes(),
+        BrainTelemetryPayload packet = new BrainTelemetryPayload(mob.getId(), (int) snapshot.spikes(), snapshot.synapticEvents(),
                 snapshot.activeNeurons(), (float) snapshot.forward(), (float) snapshot.turn(),
                 (float) snapshot.lift(), (float) BrainAttachmentService.realTimeFactor(mob), snapshot.escape(),
                 senses.light(), senses.leftEye(), senses.rightEye(), senses.looming(), senses.tactile(),

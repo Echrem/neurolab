@@ -6,7 +6,7 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.4.1 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.1.jar` for the 1.21.1 profile.
+Version 0.4.2 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Earlier version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.4.2.jar` for the 1.21.1 profile.
 
 This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
@@ -17,6 +17,7 @@ This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Fo
 - Commands to attach the simulator to the Neuro Fly or another mob, inspect load status, and detach it.
 - Timed sensory test pulses for controlled input/output checks.
 - A client-side engineering dashboard with configurable side panels and sixteen per-mob time-series plots.
+- An above-mob brain hologram for attached mobs, showing the live count of connectome edges activated by spikes in each 50 ms neural step.
 - Asynchronous JSONL telemetry written to the current world's `neurolab/events.jsonl` file.
 
 The implementation is intentionally small enough to inspect. There is no separate launcher or account service, and the mod does not require Fabric API.
@@ -132,13 +133,13 @@ The analysis and settings screens use a solid backdrop so Minecraft's menu blur 
 
 The dashboard controls render above an opaque background and keep side panels visible at smaller GUI scales. Mob movement commands now move the entity on the server with normal collision checks, so the control remains active while vanilla mob AI is paused.
 
-This panel visualizes decoded telemetry; it does not render the full connectome or per-neuron electrophysiology. Counts use a per-chart automatic range, while bounded control signals use their defined ranges; turn is plotted around a zero baseline so direction is visible. It is an inspection aid, not a calibrated measurement instrument. The server also appends observations to:
+This panel visualizes decoded telemetry; it does not render the full connectome or per-neuron electrophysiology. Counts use a per-chart automatic range, while bounded control signals use their defined ranges; turn is plotted around a zero baseline so direction is visible. The above-mob hologram is a compact activity schematic; its synapse count is the actual number of graph edges traversed by spiking neurons in the latest neural step, not a display of individual anatomical synapse locations. It is an inspection aid, not a calibrated measurement instrument. The server also appends observations to:
 
 ```text
 <world>/neurolab/events.jsonl
 ```
 
-Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. When a trial is active, observations also include its `trialLabel` and tick offset; `trial_start` and `trial_end` records make boundaries explicit, including automatic expiry and entity unload. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; the expanded telemetry uses protocol 3.
+Each JSONL observation includes the control `mode`, stable `entityUuid`, `dimension`, and server `gameTick`, alongside the neural and body signals. When a trial is active, observations also include its `trialLabel` and tick offset; `trial_start` and `trial_end` records make boundaries explicit, including automatic expiry and entity unload. These fields help separate experimental conditions and entities across recordings. Client and server must both use the same mod version; the telemetry uses protocol 4.
 
 The JSONL log is intended for offline inspection and analysis. Avoid sharing it without checking it for world or server details you do not want to publish.
 

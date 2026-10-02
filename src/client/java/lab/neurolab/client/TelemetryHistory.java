@@ -23,6 +23,11 @@ public final class TelemetryHistory {
         DATA.forEach((id, series) -> result.add(series.view(id)));
         return result;
     }
+    public static BrainTelemetryPayload latest(int entityId) {
+        Series series = DATA.get(entityId);
+        if (series == null || System.nanoTime() - series.lastUpdatedNanos() > 1_500_000_000L) return null;
+        return series.latest();
+    }
     public static void clear() { DATA.clear(); }
 
     private static void prune() {
@@ -39,6 +44,7 @@ public final class TelemetryHistory {
             updatedAt = System.nanoTime();
         }
         long lastUpdatedNanos() { return updatedAt; }
+        synchronized BrainTelemetryPayload latest() { return samples.peekLast(); }
         synchronized SeriesView view(int id) { return new SeriesView(id, List.copyOf(samples)); }
     }
     public record SeriesView(int entityId, List<BrainTelemetryPayload> samples) {}

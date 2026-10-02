@@ -17,8 +17,13 @@ public final class FlyBrain {
         }
         private static float clamp(float v) { return Float.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; }
     }
-    public record Snapshot(long tick, long spikes, int activeNeurons, double forward, double turn, double lift,
-                           boolean escape, Map<String, Double> populations) {}
+    public record Snapshot(long tick, long spikes, long synapticEvents, int activeNeurons, double forward, double turn, double lift,
+                           boolean escape, Map<String, Double> populations) {
+        public Snapshot(long tick, long spikes, int activeNeurons, double forward, double turn, double lift,
+                        boolean escape, Map<String, Double> populations) {
+            this(tick, spikes, 0, activeNeurons, forward, turn, lift, escape, populations);
+        }
+    }
 
     private static final double DT_MS = 0.5, TAU_MS = 20, SYNAPSE_TAU_MS = 5;
     private static final double REST_MV = -52, THRESHOLD_MV = -45, RESET_MV = -52;
@@ -33,7 +38,7 @@ public final class FlyBrain {
     private final String[] types;
     private final byte[] signs;
     private final SplittableRandom random = new SplittableRandom(0x4e6575726fL);
-    private volatile Snapshot latest = new Snapshot(0, 0, 0, 0, 0, 0, false, Map.of());
+    private volatile Snapshot latest = new Snapshot(0, 0, 0, 0, 0, 0, 0, false, Map.of());
     private long tick;
 
     public FlyBrain(ConnectomeData graph) {
@@ -57,6 +62,7 @@ public final class FlyBrain {
     /** Advance 50 ms of neural time. The call is intended for a dedicated worker thread, never the Minecraft tick. */
     public Snapshot advance(Drive drive) {
         long spikes = 0;
+        long synapticEvents = 0;
         Map<String, Integer> counts = new HashMap<>();
         for (int sub = 0; sub < 100; sub++) {
             int nextCount = 0;
@@ -91,6 +97,7 @@ public final class FlyBrain {
                         current[to] += weight * (signs[id] < 0 ? -1 : 1);
                         nextCount = enqueue(to, next, nextCount);
                     }
+                    synapticEvents += graph.rowOffsets[id + 1] - graph.rowOffsets[id];
                 } else {
                     voltage[id] = v;
                     if (Math.abs(v - REST_MV) > 0.03 || Math.abs(current[id]) > 0.03)
@@ -113,7 +120,7 @@ public final class FlyBrain {
         boolean escape = counts.entrySet().stream().anyMatch(e -> e.getKey().startsWith("DNp01") && e.getValue() > 0);
         Map<String, Double> rates = Map.of("DNp09/BDN-forward", driveForward, "DNa02-turn", turn, "DNg02-lift", liftDrive,
                 "DNp01-escape", escape ? 1.0 : 0.0);
-        latest = new Snapshot(++tick, spikes, activeCount, driveForward, turn, liftDrive, escape, rates);
+        latest = new Snapshot(++tick, spikes, synapticEvents, activeCount, driveForward, turn, liftDrive, escape, rates);
         return latest;
     }
 

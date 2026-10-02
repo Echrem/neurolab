@@ -29,6 +29,7 @@ final class ConnectomeDataTest {
         for (int tick = 0; tick < 4; tick++) {
             FlyBrain.Snapshot snapshot = brain.advance(new FlyBrain.Drive(0, 0, 0, 0, 0));
             assertEquals(0, snapshot.spikes());
+            assertEquals(0, snapshot.synapticEvents());
             assertEquals(0, snapshot.forward());
             assertFalse(snapshot.escape());
         }
@@ -38,6 +39,7 @@ final class ConnectomeDataTest {
         FlyBrain brain = new FlyBrain(ConnectomeData.readBundled());
         FlyBrain.Snapshot snapshot = brain.advance(new FlyBrain.Drive(1, 0, 0, 0, 0));
         assertTrue(snapshot.spikes() > 0);
+        assertTrue(snapshot.synapticEvents() > 0);
         assertTrue(snapshot.activeNeurons() > 0);
     }
 

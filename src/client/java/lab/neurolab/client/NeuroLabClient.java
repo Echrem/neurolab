@@ -13,6 +13,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.RenderLivingEvent;
 import org.lwjgl.glfw.GLFW;
 
 @Mod.EventBusSubscriber(modid = "neurolab", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -59,6 +60,11 @@ public final class NeuroLabClient {
         @SubscribeEvent
         public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
             TelemetryHistory.clear();
+        }
+
+        @SubscribeEvent
+        public static void renderBrainHologram(RenderLivingEvent.Post<?, ?> event) {
+            BrainHologramRenderer.render(event);
         }
     }
 }
