@@ -35,6 +35,9 @@ public final class NeuroAnalysisScreen extends Screen {
         int panelY = popupTop();
         freezeButton = addRenderableWidget(Button.builder(Component.literal(frozenStreams == null ? "FREEZE" : "RESUME"),
                         b -> toggleFreeze()).bounds(panelX + panelW - 190, panelY + 8, 80, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.neurolab.guide.short"), b ->
+                        Minecraft.getInstance().setScreen(new NeuroGuideScreen(this)))
+                .bounds(panelX + panelW - 276, panelY + 8, 80, 18).build());
         addRenderableWidget(Button.builder(Component.literal("SETTINGS"), b ->
                         Minecraft.getInstance().setScreen(new NeuroSettingsScreen(this)))
                 .bounds(panelX + panelW - 102, panelY + 8, 84, 18).build());

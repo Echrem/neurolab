@@ -29,6 +29,8 @@ public final class NeuroLabClient {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "category.neurolab");
     private static final KeyMapping TOGGLE_VIEW_HUD = new KeyMapping("key.neurolab.view_hud",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_I, "category.neurolab");
+    private static final KeyMapping GUIDE = new KeyMapping("key.neurolab.guide",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, "category.neurolab");
     private static boolean dashboardChordDown;
 
     private NeuroLabClient() {}
@@ -38,6 +40,7 @@ public final class NeuroLabClient {
         event.register(DASHBOARD);
         event.register(VIEW_TARGET);
         event.register(TOGGLE_VIEW_HUD);
+        event.register(GUIDE);
     }
 
     @SubscribeEvent
@@ -73,6 +76,9 @@ public final class NeuroLabClient {
                 client.setScreen(new NeuroAnalysisScreen());
             }
             dashboardChordDown = chordDown;
+            while (GUIDE.consumeClick()) {
+                if (client.screen == null) client.setScreen(new NeuroGuideScreen(null));
+            }
             while (VIEW_TARGET.consumeClick()) {
                 if (client.screen != null || client.player == null) continue;
                 if (client.getCameraEntity() != null && client.getCameraEntity() != client.player) {
