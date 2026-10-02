@@ -13,7 +13,7 @@ Thanks for helping improve NeuroLab. This is an experimental research tool; dist
 
 ## Publishing a release
 
-For each release, update `mod_version` in `gradle.properties` and any versioned documentation, then commit and push the change to `main`. Create a matching version tag (for example, `v0.2.0`) and push it with `git push origin v0.2.0`. GitHub Actions checks that the tag matches `mod_version`, runs the test and build workflow, and publishes the regular mod JAR plus the sources JAR to GitHub Releases. A tag whose tests or version check fail is not published.
+For each release, update `mod_version` in `gradle.properties` and any versioned documentation, then commit and push the change to `main`. Create a matching version tag (for example, `v0.3.1`) and push it with `git push origin v0.3.1`. GitHub Actions checks that the tag matches `mod_version`, runs the test and build workflow, and publishes the regular mod JAR plus the sources JAR to GitHub Releases. A tag whose tests or version check fail is not published.
 
 ## Scope and scientific claims
 

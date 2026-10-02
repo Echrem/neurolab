@@ -4,7 +4,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import lab.neurolab.brain.ControlMode;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /** Compact observation packet; neural internals stay on the server. */
 public record BrainTelemetryPayload(int entityId, int spikes, int active, float forward, float turn, float lift,
@@ -13,7 +13,7 @@ public record BrainTelemetryPayload(int entityId, int spikes, int active, float 
                                     float bodyForward, float bodyTurn, float bodyLift, boolean bodyEscape,
                                     boolean reflex, boolean testStimulus, ControlMode mode)
         implements CustomPacketPayload {
-    public static final Type<BrainTelemetryPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("neurolab", "telemetry"));
+    public static final Type<BrainTelemetryPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("neurolab", "telemetry"));
     public static final StreamCodec<RegistryFriendlyByteBuf, BrainTelemetryPayload> CODEC =
             StreamCodec.of(BrainTelemetryPayload::encode, BrainTelemetryPayload::decode);
 

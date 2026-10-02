@@ -3,7 +3,7 @@ package lab.neurolab.minecraft;
 import lab.neurolab.client.ClientTelemetry;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.Channel;
@@ -17,7 +17,7 @@ public final class TelemetryNetwork {
 
     private static Channel<CustomPacketPayload> createChannel() {
         PayloadConnection<CustomPacketPayload> connection = ChannelBuilder
-                .named(Identifier.fromNamespaceAndPath(NeuroLabMod.MOD_ID, "main"))
+                .named(ResourceLocation.fromNamespaceAndPath(NeuroLabMod.MOD_ID, "main"))
                 .networkProtocolVersion(3)
                 .optional()
                 .payloadChannel();

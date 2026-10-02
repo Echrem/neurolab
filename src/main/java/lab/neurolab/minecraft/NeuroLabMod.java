@@ -19,7 +19,7 @@ import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraft.network.protocol.PacketFlow;
@@ -32,7 +32,7 @@ public final class NeuroLabMod {
     public static final String MOD_ID = "neurolab";
 
     public NeuroLabMod(FMLJavaModLoadingContext context) {
-        var modBus = context.getModBusGroup();
+        var modBus = context.getModEventBus();
         NeuroLabEntities.ENTITY_TYPES.register(modBus);
         NeuroLabEntities.ITEMS.register(modBus);
         TelemetryNetwork.initialize();
@@ -44,7 +44,7 @@ public final class NeuroLabMod {
 
         @SubscribeEvent
         public static void registerCommands(RegisterCommandsEvent event) {
-            event.getDispatcher().register(Commands.literal("neurolab").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+            event.getDispatcher().register(Commands.literal("neurolab").requires(source -> source.hasPermission(2))
                     .then(Commands.literal("attach").then(Commands.argument("mob", EntityArgument.entity())
                             .executes(ctx -> {
                                 Entity entity = EntityArgument.getEntity(ctx, "mob");
@@ -198,7 +198,7 @@ public final class NeuroLabMod {
                 senses.light(), senses.leftEye(), senses.rightEye(), senses.looming(), senses.tactile(),
                 senses.odor(), senses.taste(), (float) body.forward(), (float) body.turn(),
                 (float) body.lift(), body.escape(), body.reflex(), testStimulus, mode);
-        TelemetryLog.record(packet, mob.getUUID(), mob.level().dimension().identifier().toString(), mob.level().getGameTime());
+        TelemetryLog.record(packet, mob.getUUID(), mob.level().dimension().location().toString(), mob.level().getGameTime());
         TelemetryNetwork.CHANNEL.send(packet, PacketDistributor.TRACKING_ENTITY.with(mob));
     }
 }

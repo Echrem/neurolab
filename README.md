@@ -6,9 +6,9 @@ The point is to make an interesting, inspectable game experiment—not to claim 
 
 ## Project status
 
-Version 0.3.0 targets Minecraft 1.21.11 with Forge 61.2.0. Use the 0.1.x releases for Minecraft 1.21.1; the new JAR is not compatible with that older game version.
+Version 0.3.1 targets **Minecraft 1.21.1 / Forge 52.1.16** and retains the new control modes, stimulus commands, and dashboard features. Version 0.3.0 targeted Minecraft 1.21.11 and does not load on 1.21.1. Use `neurolab-1.21.1-0.3.1.jar` for the 1.21.1 profile.
 
-This is an early research prototype targeting Minecraft 1.21.11 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
+This is an early research prototype targeting Minecraft 1.21.1 and Forge. The Forge port is under active validation; until a client and dedicated-server play test passes, treat behavior and performance as experimental and use a backed-up test world.
 
 ## What is included
 
@@ -23,18 +23,18 @@ The implementation is intentionally small enough to inspect. There is no separat
 
 ## Requirements
 
-- Minecraft **1.21.11**
-- Minecraft Forge **61.2.x** for Minecraft 1.21.11
+- Minecraft **1.21.1**
+- Minecraft Forge **52.1.16** for Minecraft 1.21.1
 - Java **21**
 
 Install the mod JAR on the server and on every client that needs the custom entity renderer and analysis screen. For a local single-player experiment, the client installation is enough.
 
 ## Install a published release
 
-1. Install [Minecraft Forge for 1.21.11](https://files.minecraftforge.net/net/minecraftforge/forge/index_1.21.11.html) and use Java 21 to run the game.
-2. Download the `neurolab-<version>.jar` asset from [GitHub Releases](https://github.com/Echrem/neurolab/releases/latest). Choose the regular mod JAR, not the `-sources.jar` or GitHub's automatically generated **Source code** archives.
+1. Install [Minecraft Forge for 1.21.1](https://files.minecraftforge.net/net/minecraftforge/forge/index_1.21.1.html) and use Java 21 to run the game.
+2. Download the `neurolab-1.21.1-<version>.jar` asset from [GitHub Releases](https://github.com/Echrem/neurolab/releases/latest). Choose the regular mod JAR, not the `-sources.jar` or GitHub's automatically generated **Source code** archives.
 3. Put the mod JAR in the Forge profile's `mods` folder. The usual folders are `%appdata%\.minecraft\mods` on Windows, `~/Library/Application Support/minecraft/mods` on macOS, and `~/.minecraft/mods` on Linux. For a third-party launcher, use that launcher's instance-specific `mods` folder.
-4. Select the Forge 1.21.11 profile and launch the game. Back up your test world before trying the prototype.
+4. Select the Forge 1.21.1 profile and launch the game. Back up your test world before trying the prototype.
 
 For a dedicated server, install the mod on the server and on each client joining it. Release builds are published automatically after a matching `v*` version tag passes the test-and-build workflow; see [Contributing](CONTRIBUTING.md) for the versioning workflow.
 
@@ -150,7 +150,7 @@ Build with JDK 21:
 ./gradlew clean test build
 ```
 
-The distributable Forge mod is written to `build/libs/neurolab-<version>.jar`. Tests cover connectome invariants, control-mode isolation, pulse timing and cancellation, immutable telemetry snapshots, wire encoding, and JSONL identity fields. They do not replace a client-and-server play test.
+The distributable Forge mod is written to `build/libs/neurolab-1.21.1-<version>.jar`. Tests cover connectome invariants, control-mode isolation, pulse timing and cancellation, immutable telemetry snapshots, wire encoding, and JSONL identity fields. They do not replace a client-and-server play test.
 
 ## Source layout
 

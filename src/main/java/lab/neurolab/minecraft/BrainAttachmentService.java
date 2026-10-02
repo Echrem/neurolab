@@ -136,7 +136,7 @@ public final class BrainAttachmentService {
                 vy = Math.max(-0.12, Math.min(0.16, velocity.y * 0.8 + lift));
             } else if (body.escape() && mob.onGround()) vy = Math.max(velocity.y, 0.42);
             mob.setDeltaMovement(vx, vy, vz);
-            mob.needsSync = true;
+            mob.hasImpulse = true;
         }
     }
 

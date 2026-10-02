@@ -306,8 +306,7 @@ public final class NeuroAnalysisScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
-        int keyCode = event.key();
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_SPACE) { toggleFreeze(); return true; }
         if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT) {
             List<TelemetryHistory.SeriesView> streams = streams().stream()
@@ -320,7 +319,7 @@ public final class NeuroAnalysisScreen extends Screen {
                 return true;
             }
         }
-        return super.keyPressed(event);
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
